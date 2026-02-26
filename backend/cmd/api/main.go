@@ -12,20 +12,22 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/zavieruka/video-platform/backend/internal/config"
+	"github.com/zavieruka/video-platform/backend/internal/database"
 	"github.com/zavieruka/video-platform/backend/internal/handlers"
+	"github.com/zavieruka/video-platform/backend/internal/services"
+	"github.com/zavieruka/video-platform/backend/internal/storage"
+	"github.com/zavieruka/video-platform/backend/internal/validation"
 )
 
 func main() {
-	// Load .env file if it exists
+	// Load .env file if it exists (for local development)
 	// In Cloud Run, environment variables are set directly
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using environment variables")
 	}
 
-	// Create context for initialization
 	ctx := context.Background()
 
-	// Load and validate configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
@@ -45,15 +47,31 @@ func main() {
 
 	log.Println("GCP clients initialized successfully")
 
+	// Initialize services
+	videoStorage := storage.NewGCSVideoStorage(cfg.StorageClient, cfg.SourceBucketName)
+	videoRepository := database.NewFirestoreVideoRepository(cfg.FirestoreClient)
+	videoValidator := validation.NewVideoValidator(cfg.MaxUploadSizeMB, cfg.AllowedVideoFormats)
+	videoService := services.NewVideoService(videoRepository, videoStorage, videoValidator, cfg.UploadURLExpiryHrs)
+
 	// Initialize handlers
 	healthHandler := handlers.NewHealthHandler(cfg)
+	videoHandler := handlers.NewVideoHandler(videoService)
+
+	log.Println("Services and handlers initialized successfully")
 
 	// Set up HTTP routes
 	mux := http.NewServeMux()
 
-	// Health check endpoints
+	// Health check endpoints (for Cloud Run)
 	mux.HandleFunc("/health", healthHandler.HandleHealth)
 	mux.HandleFunc("/ready", healthHandler.HandleReady)
+
+	// Video endpoints
+	mux.HandleFunc("POST /api/v1/videos/upload-url", videoHandler.RequestUploadURL)
+	mux.HandleFunc("POST /api/v1/videos/{id}/confirm", videoHandler.ConfirmUpload)
+	mux.HandleFunc("POST /api/v1/videos/{id}/fail", videoHandler.FailUpload)
+	mux.HandleFunc("GET /api/v1/videos/{id}", videoHandler.GetVideo)
+	mux.HandleFunc("GET /api/v1/videos", videoHandler.ListVideos)
 
 	// Root endpoint
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +82,6 @@ func main() {
 		fmt.Fprintf(w, "Video Platform API - v0.1.0\n")
 	})
 
-	// Create HTTP server
 	server := &http.Server{
 		Addr:         cfg.GetAddress(),
 		Handler:      mux,
@@ -73,7 +90,6 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server in a goroutine
 	go func() {
 		log.Printf("Server starting on %s", server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -81,7 +97,6 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal for graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
