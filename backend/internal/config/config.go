@@ -93,12 +93,20 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// InitializeGCPClients creates and initializes GCP service clients
 // This should be called after Load() and Validate()
 func (c *Config) InitializeGCPClients(ctx context.Context) error {
 	var err error
 
-	c.FirestoreClient, err = firestore.NewClient(ctx, c.GCPProjectID)
+	if c.FirestoreDatabaseID != "" && c.FirestoreDatabaseID != "(default)" {
+		c.FirestoreClient, err = firestore.NewClientWithDatabase(
+			ctx,
+			c.GCPProjectID,
+			c.FirestoreDatabaseID,
+		)
+	} else {
+		c.FirestoreClient, err = firestore.NewClient(ctx, c.GCPProjectID)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to create Firestore client: %w", err)
 	}
