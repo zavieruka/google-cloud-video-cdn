@@ -20,6 +20,7 @@ type Video struct {
 	FileSize           int64       `firestore:"fileSize"`
 	MimeType           string      `firestore:"mimeType"`
 	Status             VideoStatus `firestore:"status"`
+	ObjectName         string      `firestore:"objectName"`
 	StorageURL         string      `firestore:"storageUrl"`
 	PublicURL          string      `firestore:"publicUrl"`
 	UploadURLExpiresAt time.Time   `firestore:"uploadUrlExpiresAt"`
@@ -63,6 +64,7 @@ type UploadURLMetadata struct {
 	FileName    string `json:"fileName"`
 	FileSize    int64  `json:"fileSize"`
 	MimeType    string `json:"mimeType"`
+	ObjectName  string `json:"objectName"`
 }
 
 type VideoResponse struct {

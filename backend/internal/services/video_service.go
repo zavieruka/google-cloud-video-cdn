@@ -71,6 +71,7 @@ func (s *VideoServiceImpl) RequestUploadURL(ctx context.Context, req *models.Upl
 		FileSize:           req.FileSize,
 		MimeType:           req.MimeType,
 		Status:             models.StatusPending,
+		ObjectName:         objectName,
 		StorageURL:         s.storage.GetStorageURL(objectName),
 		PublicURL:          s.storage.GetPublicURL(objectName),
 		UploadURLExpiresAt: expiresAt,
@@ -94,6 +95,7 @@ func (s *VideoServiceImpl) RequestUploadURL(ctx context.Context, req *models.Upl
 			FileName:    req.FileName,
 			FileSize:    req.FileSize,
 			MimeType:    req.MimeType,
+			ObjectName:  objectName,
 		},
 	}
 
@@ -120,7 +122,7 @@ func (s *VideoServiceImpl) ConfirmUpload(ctx context.Context, videoID string, re
 		return nil, errors.NewBadRequestError("Upload URL has expired. Please request a new upload URL.")
 	}
 
-	objectName := video.StorageURL[len(fmt.Sprintf("gs://%s/", s.getBucketNameFromStorageURL(video.StorageURL))):]
+	objectName := video.ObjectName
 
 	exists, err := s.storage.FileExists(ctx, objectName)
 	if err != nil {
