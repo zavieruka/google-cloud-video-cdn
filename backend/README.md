@@ -268,6 +268,7 @@ Expected response:
 - `POST /api/v1/videos/{id}/fail` - Mark upload as failed
 - `GET /api/v1/videos/{id}` - Get video details
 - `GET /api/v1/videos` - List videos (paginated)
+- `DELETE /api/v1/videos/{id}` - Delete video and associated storage objects
 
 ## Architecture Decisions
 
