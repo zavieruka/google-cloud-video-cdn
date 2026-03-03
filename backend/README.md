@@ -103,21 +103,29 @@ Purpose-built for large object storage such as video files. Provides seamless in
 
 5. **Create service account for local development:**
 
-   **IMPORTANT**: Signed URL generation requires service account credentials with signing capabilities. User credentials alone cannot sign URLs. We'll use service account impersonation, which is the recommended approach.
+   **IMPORTANT**: Signed URL generation requires service account credentials with signing capabilities. User credentials alone cannot sign URLs. We'll use service account impersonation, which is the recommended approach and complies with organizational policies that prohibit service account key generation.
 
    ```bash
    export PROJECT_ID=$(gcloud config get-value project)
 
+   # Create service account
    gcloud iam service-accounts create video-platform-dev \
        --display-name="Video Platform Development"
 
+   # Grant Storage Admin role (for signed URLs and file operations)
    gcloud projects add-iam-policy-binding $PROJECT_ID \
        --member="serviceAccount:video-platform-dev@${PROJECT_ID}.iam.gserviceaccount.com" \
        --role="roles/storage.admin"
 
+   # Grant Firestore User role (for database operations)
    gcloud projects add-iam-policy-binding $PROJECT_ID \
        --member="serviceAccount:video-platform-dev@${PROJECT_ID}.iam.gserviceaccount.com" \
        --role="roles/datastore.user"
+
+   # Grant Pub/Sub Publisher role (for event publishing)
+   gcloud projects add-iam-policy-binding $PROJECT_ID \
+       --member="serviceAccount:video-platform-dev@${PROJECT_ID}.iam.gserviceaccount.com" \
+       --role="roles/pubsub.publisher"
    ```
 
 6. **Configure service account impersonation:**
@@ -125,6 +133,7 @@ Purpose-built for large object storage such as video files. Provides seamless in
    **Step 1: Grant yourself permission to impersonate the service account**
 
    ```bash
+   # Automatically use your current gcloud account email
    export USER_EMAIL=$(gcloud config get-value account)
 
    gcloud iam service-accounts add-iam-policy-binding \
@@ -144,6 +153,19 @@ Purpose-built for large object storage such as video files. Provides seamless in
    - Open your browser for authentication
    - Save credentials to `~/.config/gcloud/application_default_credentials.json`
    - Configure ADC to impersonate the service account automatically
+
+7. **Set up Pub/Sub topics and subscriptions:**
+
+   ```bash
+   cd scripts
+   ./setup-pubsub.sh
+   ```
+
+   This script will:
+   - Create `video-uploaded` topic for upload events
+   - Create `video-processing-complete` topic for completion events
+   - Create subscriptions for the processor service
+   - Configure appropriate acknowledgment deadlines and retention periods
 
 ### Production Deployment Notes
 
@@ -185,6 +207,9 @@ Optional variables:
 - `MAX_UPLOAD_SIZE_MB`: Maximum upload size (default: 500)
 - `ALLOWED_VIDEO_FORMATS`: Allowed formats (default: mp4,mov,avi,mkv)
 - `UPLOAD_URL_EXPIRY_HOURS`: Signed URL expiry (default: 1)
+- `PUBSUB_VIDEO_UPLOADED_TOPIC`: Topic for upload events (default: "video-uploaded")
+- `PUBSUB_VIDEO_PROCESSING_COMPLETE_TOPIC`: Topic for processing completion (default: "video-processing-complete")
+- `ENABLE_AUTO_PROCESSING`: Enable automatic processing on upload (default: true)
 
 ### Production Deployment
 
@@ -395,6 +420,7 @@ gcloud auth application-default login \
 Ensure your service account has the correct IAM roles:
 - `roles/storage.admin` for Cloud Storage operations
 - `roles/datastore.user` for Firestore operations
+- `roles/pubsub.publisher` for Pub/Sub event publishing
 
 ## Contributing
 
