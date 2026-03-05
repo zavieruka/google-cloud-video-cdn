@@ -9,26 +9,37 @@ import (
 )
 
 type Client struct {
-	client    *transcoder.Client
-	projectID string
-	location  string
+	client     *transcoder.Client
+	projectID  string
+	location   string
+	templateID string
 }
 
-func NewClient(ctx context.Context, projectID, location string) (*Client, error) {
+func NewClient(ctx context.Context, projectID, location, templateID string) (*Client, error) {
 	client, err := transcoder.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transcoder client: %w", err)
 	}
 
 	return &Client{
-		client:    client,
-		projectID: projectID,
-		location:  location,
+		client:     client,
+		projectID:  projectID,
+		location:   location,
+		templateID: templateID,
 	}, nil
 }
 
-func (c *Client) CreateJob(ctx context.Context, config *JobConfig) (string, error) {
-	req := c.buildJobRequest(config)
+func (c *Client) CreateJob(ctx context.Context, inputURI, outputURI string) (string, error) {
+	req := &transcoderpb.CreateJobRequest{
+		Parent: c.getParent(),
+		Job: &transcoderpb.Job{
+			InputUri:  inputURI,
+			OutputUri: outputURI,
+			JobConfig: &transcoderpb.Job_TemplateId{
+				TemplateId: "hls-adaptive-template",
+			},
+		},
+	}
 
 	job, err := c.client.CreateJob(ctx, req)
 	if err != nil {

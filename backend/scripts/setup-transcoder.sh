@@ -28,10 +28,19 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
     --role="roles/transcoder.admin"
 
 echo ""
+echo "Creating transcoder template..."
+
+gcloud transcoder templates create hls-adaptive-template \
+    --location=us-central1 \
+    --file=internal/config/transcoder/hls_adaptive.json
+
+echo ""
 echo "========================================="
 echo "Transcoder API Setup Complete!"
 echo "========================================="
 echo ""
-echo "Permissions granted:"
-echo "  ✓ roles/transcoder.admin (create and manage jobs)"
+echo "Resources created:"
+echo "  ✓ Transcoder API enabled"
+echo "  ✓ Service account permissions granted"
+echo "  ✓ HLS adaptive template created"
 echo ""

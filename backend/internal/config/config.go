@@ -35,7 +35,9 @@ type Config struct {
 	PubSubProcessingCompleteTopic string
 	EnableAutoProcessing          bool
 
-	TranscoderLocation string
+	// Transcoder Configuration
+	TranscoderLocation   string
+	TranscoderTemplateID string
 
 	// GCP Clients
 	FirestoreClient *firestore.Client
@@ -61,6 +63,7 @@ func Load() (*Config, error) {
 		PubSubProcessingCompleteTopic: getEnv("PUBSUB_VIDEO_PROCESSING_COMPLETE_TOPIC", "video-processing-complete"),
 		EnableAutoProcessing:          getEnvAsBool("ENABLE_AUTO_PROCESSING", true),
 		TranscoderLocation:            getEnv("TRANSCODER_LOCATION", "us-central1"),
+		TranscoderTemplateID:          getEnv("TRANSCODER_TEMPLATE_ID", "hls-adaptive-template"),
 	}
 
 	if err := cfg.Validate(); err != nil {
