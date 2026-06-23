@@ -36,7 +36,7 @@ func (c *Client) CreateJob(ctx context.Context, inputURI, outputURI string) (str
 			InputUri:  inputURI,
 			OutputUri: outputURI,
 			JobConfig: &transcoderpb.Job_TemplateId{
-				TemplateId: "hls-adaptive-template",
+				TemplateId: c.templateID,
 			},
 		},
 	}

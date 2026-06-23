@@ -33,6 +33,7 @@ type Config struct {
 	// Pub/Sub Configuration
 	PubSubVideoUploadedTopic      string
 	PubSubProcessingCompleteTopic string
+	PubSubProcessorSubscription   string
 	EnableAutoProcessing          bool
 
 	// Transcoder Configuration
@@ -61,6 +62,7 @@ func Load() (*Config, error) {
 		UploadURLExpiryHrs:            getEnvAsInt("UPLOAD_URL_EXPIRY_HOURS", 1),
 		PubSubVideoUploadedTopic:      getEnv("PUBSUB_VIDEO_UPLOADED_TOPIC", "video-uploaded"),
 		PubSubProcessingCompleteTopic: getEnv("PUBSUB_VIDEO_PROCESSING_COMPLETE_TOPIC", "video-processing-complete"),
+		PubSubProcessorSubscription:   getEnv("PUBSUB_PROCESSOR_SUBSCRIPTION", "video-processor-sub"),
 		EnableAutoProcessing:          getEnvAsBool("ENABLE_AUTO_PROCESSING", true),
 		TranscoderLocation:            getEnv("TRANSCODER_LOCATION", "us-central1"),
 		TranscoderTemplateID:          getEnv("TRANSCODER_TEMPLATE_ID", "hls-adaptive-template"),
