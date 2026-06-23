@@ -6,9 +6,12 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	firestorepb "cloud.google.com/go/firestore/apiv1/firestorepb"
 	"github.com/zavieruka/video-platform/backend/internal/errors"
 	"github.com/zavieruka/video-platform/backend/internal/models"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const videosCollection = "videos"
@@ -45,7 +48,7 @@ func (r *FirestoreVideoRepository) Create(ctx context.Context, video *models.Vid
 func (r *FirestoreVideoRepository) GetByID(ctx context.Context, id string) (*models.Video, error) {
 	doc, err := r.client.Collection(videosCollection).Doc(id).Get(ctx)
 	if err != nil {
-		if err.Error() == "rpc error: code = NotFound desc = no document to return" {
+		if status.Code(err) == codes.NotFound {
 			return nil, errors.NewNotFoundError("Video", id)
 		}
 		return nil, errors.NewDatabaseError("Failed to get video", err)
@@ -91,18 +94,14 @@ func (r *FirestoreVideoRepository) Delete(ctx context.Context, id string) error 
 }
 
 func (r *FirestoreVideoRepository) List(ctx context.Context, limit int, offset int) ([]*models.Video, int, error) {
-	// Get total count
-	countIter := r.client.Collection(videosCollection).Documents(ctx)
+	// Get total count via a server-side aggregation (avoids scanning every doc)
+	aggResult, err := r.client.Collection(videosCollection).NewAggregationQuery().WithCount("all").Get(ctx)
+	if err != nil {
+		return nil, 0, errors.NewDatabaseError("Failed to count videos", err)
+	}
 	totalCount := 0
-	for {
-		_, err := countIter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, 0, errors.NewDatabaseError("Failed to count videos", err)
-		}
-		totalCount++
+	if v, ok := aggResult["all"].(*firestorepb.Value); ok {
+		totalCount = int(v.GetIntegerValue())
 	}
 
 	// Get paginated results

@@ -46,6 +46,7 @@ func (s *GCSVideoStorage) GenerateSignedUploadURL(
 	if err != nil {
 		return "", err
 	}
+	defer iamClient.Close()
 
 	signBytes := func(b []byte) ([]byte, error) {
 		req := &credentialspb.SignBlobRequest{
