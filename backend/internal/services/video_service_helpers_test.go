@@ -1,4 +1,4 @@
-package validation
+package services_test
 
 import (
 	"fmt"
@@ -32,6 +32,30 @@ func newTestVideoService() (
 	)
 
 	return service, mockRepo, mockStorage, mockValidator, mockPublisher
+}
+
+// newTestVideoServiceNoPublisher builds a service with auto-processing enabled but
+// no publisher configured (a genuine nil interface), mirroring cmd/api's degraded mode.
+func newTestVideoServiceNoPublisher() (
+	*services.VideoServiceImpl,
+	*mocks.MockVideoRepository,
+	*mocks.MockVideoStorage,
+) {
+	mockRepo := new(mocks.MockVideoRepository)
+	mockStorage := new(mocks.MockVideoStorage)
+	mockValidator := new(mocks.MockValidator)
+
+	service := services.NewVideoService(
+		mockRepo,
+		mockStorage,
+		mockValidator,
+		1,
+		nil, // no publisher configured
+		"test-bucket-source",
+		true, // auto-processing enabled
+	)
+
+	return service, mockRepo, mockStorage
 }
 
 func newPendingVideo(videoID string) *models.Video {

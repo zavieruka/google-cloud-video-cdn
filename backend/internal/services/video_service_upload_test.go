@@ -1,4 +1,4 @@
-package validation
+package services_test
 
 import (
 	"context"
@@ -287,6 +287,40 @@ func TestVideoService_ConfirmUpload_Success(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 	mockStorage.AssertExpectations(t)
 	mockPublisher.AssertExpectations(t)
+}
+
+// Regression: with auto-processing enabled but no publisher configured (degraded
+// mode), ConfirmUpload must succeed without attempting to publish and without
+// panicking on a nil Publisher. cmd/api passes a genuine nil interface here.
+func TestVideoService_ConfirmUpload_NilPublisher_AutoProcessingEnabled(t *testing.T) {
+	service, mockRepo, mockStorage := newTestVideoServiceNoPublisher()
+
+	ctx := context.Background()
+	videoID := "video-123"
+	req := &models.ConfirmUploadRequest{}
+
+	video := newPendingVideo(videoID)
+
+	mockRepo.On("GetByID", ctx, videoID).Return(video, nil).Once()
+	mockStorage.On("FileExists", ctx, video.ObjectName).Return(true, nil).Once()
+	mockStorage.On("GetFileSize", ctx, video.ObjectName).Return(video.FileSize, nil).Once()
+	mockRepo.On("UpdateStatus", ctx, videoID, models.StatusUploaded, (*string)(nil)).Return(nil).Once()
+
+	updatedVideo := &models.Video{
+		ID:         videoID,
+		Status:     models.StatusUploaded,
+		ObjectName: video.ObjectName,
+	}
+	mockRepo.On("GetByID", ctx, videoID).Return(updatedVideo, nil).Once()
+
+	result, err := service.ConfirmUpload(ctx, videoID, req)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, models.StatusUploaded, result.Status)
+
+	mockRepo.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
 }
 
 func TestVideoService_ConfirmUpload_GetByIDFails(t *testing.T) {
