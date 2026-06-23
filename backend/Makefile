@@ -1,9 +1,10 @@
-.PHONY: help test test-integration test-coverage test-verbose clean run-api run-processor setup verify
+.PHONY: help check test test-integration test-coverage test-verbose clean run-api run-processor setup verify
 
 TRANSCODER_REGION ?= us-central1
 
 help:
 	@echo "Available commands:"
+	@echo "  make check             - Build, vet, and test (CI / pre-commit gate)"
 	@echo "  make test              - Run unit tests"
 	@echo "  make test-integration  - Run integration tests"
 	@echo "  make test-coverage     - Run tests with coverage report"
@@ -13,6 +14,14 @@ help:
 	@echo "  make run-api           - Run API server"
 	@echo "  make run-processor     - Run processor service"
 	@echo "  make clean             - Clean test cache"
+
+check:
+	@echo "Building..."
+	@go build ./...
+	@echo "Vetting..."
+	@go vet ./...
+	@echo "Testing..."
+	@go test ./... -short
 
 test:
 	@echo "Running unit tests..."
