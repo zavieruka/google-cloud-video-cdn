@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:latest AS builder
+FROM golang:1.26 AS builder
 
 # Set working directory
 WORKDIR /app
@@ -15,9 +15,10 @@ COPY . .
 
 # Build the application
 # CGO_ENABLED=0 for static binary
-# -ldflags="-w -s" to reduce binary size and strip debug information
+# -ldflags="-w -s" strips debug info to reduce size; -X stamps the build version
+ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-w -s" \
+    -ldflags="-w -s -X github.com/zavieruka/video-platform/backend/internal/version.Version=${VERSION}" \
     -o /app/api \
     ./cmd/api
 

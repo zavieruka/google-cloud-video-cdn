@@ -19,6 +19,7 @@ import (
 	"github.com/zavieruka/video-platform/backend/internal/services"
 	"github.com/zavieruka/video-platform/backend/internal/storage"
 	"github.com/zavieruka/video-platform/backend/internal/validation"
+	"github.com/zavieruka/video-platform/backend/internal/version"
 )
 
 func main() {
@@ -49,21 +50,25 @@ func main() {
 
 	log.Println("GCP clients initialized successfully")
 
-	// Initialize Pub/Sub publisher
-	var publisher *pubsub.Publisher
+	// Initialize Pub/Sub publisher. Hold it as the services.Publisher interface so
+	// that when auto-processing is disabled or init fails we pass a genuine nil
+	// interface — a typed nil *pubsub.Publisher would be non-nil as an interface
+	// and panic when the service tried to publish.
+	var publisher services.Publisher
+	autoProcessing := cfg.EnableAutoProcessing
 	if cfg.EnableAutoProcessing {
-		var err error
-		publisher, err = pubsub.NewPublisher(ctx, cfg.GCPProjectID, map[string]string{
+		p, err := pubsub.NewPublisher(ctx, cfg.GCPProjectID, map[string]string{
 			"video-uploaded":      cfg.PubSubVideoUploadedTopic,
 			"processing-complete": cfg.PubSubProcessingCompleteTopic,
 		})
 		if err != nil {
 			log.Printf("Warning: Failed to initialize Pub/Sub publisher: %v", err)
 			log.Println("Auto-processing will be disabled. Videos can still be uploaded.")
-			publisher = nil
+			autoProcessing = false
 		} else {
 			log.Println("Pub/Sub publisher initialized successfully")
-			defer publisher.Close()
+			publisher = p
+			defer p.Close()
 		}
 	} else {
 		log.Println("Auto-processing is disabled")
@@ -80,7 +85,7 @@ func main() {
 		cfg.UploadURLExpiryHrs,
 		publisher,
 		cfg.SourceBucketName,
-		cfg.EnableAutoProcessing,
+		autoProcessing,
 	)
 
 	// Initialize handlers
@@ -110,7 +115,7 @@ func main() {
 			http.NotFound(w, r)
 			return
 		}
-		fmt.Fprintf(w, "Video Platform API - v0.1.0\n")
+		fmt.Fprintf(w, "Video Platform API - %s\n", version.Version)
 	})
 
 	handler := middleware.LoggingMiddleware(middleware.RecoveryMiddleware(mux))

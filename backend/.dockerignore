@@ -1,0 +1,19 @@
+# Local env / secrets — never bake these into the image
+.env
+.env.*
+
+# Docs & meta
+*.md
+.gitignore
+
+# Tooling / non-runtime (api build only needs cmd/api + internal)
+Makefile
+scripts/
+cmd/test-transcoder/
+
+# Test & coverage artifacts
+coverage.out
+coverage.html
+
+# VCS
+.git
