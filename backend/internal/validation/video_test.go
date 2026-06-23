@@ -43,8 +43,6 @@ func TestVideo_ToResponse(t *testing.T) {
 				assert.Equal(t, int64(1024*1024*10), response.FileSize)
 				assert.Equal(t, "video/mp4", response.MimeType)
 				assert.Equal(t, models.StatusUploaded, response.Status)
-				assert.Equal(t, "videos/video-123.mp4", response.ObjectName)
-				assert.Equal(t, "gs://bucket/videos/video-123.mp4", response.StorageURL)
 				assert.Equal(t, "https://storage.googleapis.com/bucket/videos/video-123.mp4", response.PublicURL)
 				assert.Equal(t, baseTime, response.CreatedAt)
 				assert.Equal(t, baseTime, response.UpdatedAt)

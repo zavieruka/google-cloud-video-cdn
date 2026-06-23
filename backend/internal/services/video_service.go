@@ -263,7 +263,7 @@ func (s *VideoServiceImpl) DeleteVideo(ctx context.Context, videoID string) erro
 
 	switch video.Status {
 	case models.StatusProcessing:
-		return fmt.Errorf("cannot delete video while processing")
+		return errors.NewConflictError("cannot delete video while processing")
 
 	case models.StatusPending:
 		// No object exists yet

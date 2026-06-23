@@ -91,8 +91,6 @@ type VideoResponse struct {
 	FileSize    int64       `json:"fileSize"`
 	MimeType    string      `json:"mimeType"`
 	Status      VideoStatus `json:"status"`
-	ObjectName  string      `json:"objectName"`
-	StorageURL  string      `json:"storageUrl"`
 	PublicURL   string      `json:"publicUrl"`
 	CreatedAt   time.Time   `json:"createdAt"`
 	UpdatedAt   time.Time   `json:"updatedAt"`
@@ -118,11 +116,6 @@ type ProcessedVideoResponse struct {
 	Bitrate    int    `json:"bitrate"`
 }
 
-type VideoURLs struct {
-	Storage string `json:"storage"`
-	Public  string `json:"public"`
-}
-
 type VideoListResponse struct {
 	Videos     []VideoResponse `json:"videos"`
 	TotalCount int             `json:"totalCount"`
@@ -145,8 +138,6 @@ func (v *Video) ToResponse() *VideoResponse {
 		FileSize:        v.FileSize,
 		MimeType:        v.MimeType,
 		Status:          v.Status,
-		ObjectName:      v.ObjectName,
-		StorageURL:      v.StorageURL,
 		PublicURL:       v.PublicURL,
 		CreatedAt:       v.CreatedAt,
 		UpdatedAt:       v.UpdatedAt,
