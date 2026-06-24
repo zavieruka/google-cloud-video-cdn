@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/zavieruka/video-platform/backend/internal/config"
+	"github.com/zavieruka/video-platform/backend/internal/version"
 )
 
 // HealthHandler handles health check requests
@@ -39,7 +40,7 @@ func (h *HealthHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	response := HealthResponse{
 		Status:      "healthy",
 		Timestamp:   time.Now().UTC(),
-		Version:     "0.1.0", // TODO: Get from build info
+		Version:     version.Version,
 		Environment: h.config.Environment,
 	}
 

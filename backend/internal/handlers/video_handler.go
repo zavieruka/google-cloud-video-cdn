@@ -96,23 +96,26 @@ func (h *VideoHandler) GetVideo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *VideoHandler) ListVideos(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
-	limitStr := r.URL.Query().Get("limit")
-	offsetStr := r.URL.Query().Get("offset")
-
+	// Parse pagination params; reject malformed/out-of-range values explicitly.
 	limit := 20 // default
 	offset := 0 // default
 
-	if limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil {
-			limit = parsedLimit
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		parsed, err := strconv.Atoi(limitStr)
+		if err != nil || parsed < 1 {
+			h.respondError(w, errors.NewBadRequestError("limit must be a positive integer"))
+			return
 		}
+		limit = parsed
 	}
 
-	if offsetStr != "" {
-		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil {
-			offset = parsedOffset
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		parsed, err := strconv.Atoi(offsetStr)
+		if err != nil || parsed < 0 {
+			h.respondError(w, errors.NewBadRequestError("offset must be a non-negative integer"))
+			return
 		}
+		offset = parsed
 	}
 
 	response, err := h.videoService.ListVideos(r.Context(), limit, offset)

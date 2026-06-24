@@ -65,7 +65,7 @@ func main() {
 		cfg.ProcessedBucketName,
 	)
 
-	subscriber, err := pubsubpkg.NewSubscriber(ctx, cfg.GCPProjectID, "video-processor-sub")
+	subscriber, err := pubsubpkg.NewSubscriber(ctx, cfg.GCPProjectID, cfg.PubSubProcessorSubscription)
 	if err != nil {
 		log.Fatalf("Failed to create subscriber: %v", err)
 	}

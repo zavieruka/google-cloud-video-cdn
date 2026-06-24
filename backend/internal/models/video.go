@@ -74,12 +74,13 @@ type UploadURLResponse struct {
 }
 
 type UploadURLMetadata struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	FileName    string `json:"fileName"`
-	FileSize    int64  `json:"fileSize"`
-	MimeType    string `json:"mimeType"`
-	ObjectName  string `json:"objectName"`
+	Title       string      `json:"title"`
+	Description string      `json:"description"`
+	FileName    string      `json:"fileName"`
+	FileSize    int64       `json:"fileSize"`
+	MimeType    string      `json:"mimeType"`
+	ObjectName  string      `json:"objectName"`
+	Status      VideoStatus `json:"status"`
 }
 
 type VideoResponse struct {
@@ -90,9 +91,9 @@ type VideoResponse struct {
 	FileSize    int64       `json:"fileSize"`
 	MimeType    string      `json:"mimeType"`
 	Status      VideoStatus `json:"status"`
+	PublicURL   string      `json:"publicUrl"`
 	CreatedAt   time.Time   `json:"createdAt"`
 	UpdatedAt   time.Time   `json:"updatedAt"`
-	URLs        VideoURLs   `json:"urls"`
 	LastError   *string     `json:"lastError,omitempty"`
 
 	ProcessingStatus *ProcessingStatus        `json:"processingStatus,omitempty"`
@@ -103,7 +104,7 @@ type VideoResponse struct {
 
 type ProcessingStatus struct {
 	JobID           string     `json:"jobId"`
-	StartedAt       time.Time  `json:"startedAt"`
+	StartedAt       *time.Time `json:"startedAt,omitempty"`
 	EndedAt         *time.Time `json:"endedAt,omitempty"`
 	DurationSeconds float64    `json:"durationSeconds,omitempty"`
 }
@@ -113,11 +114,6 @@ type ProcessedVideoResponse struct {
 	URL        string `json:"url"`
 	FileSize   int64  `json:"fileSize"`
 	Bitrate    int    `json:"bitrate"`
-}
-
-type VideoURLs struct {
-	Storage string `json:"storage"`
-	Public  string `json:"public"`
 }
 
 type VideoListResponse struct {
@@ -135,19 +131,16 @@ type FailUploadResponse struct {
 
 func (v *Video) ToResponse() *VideoResponse {
 	response := &VideoResponse{
-		ID:          v.ID,
-		Title:       v.Title,
-		Description: v.Description,
-		FileName:    v.FileName,
-		FileSize:    v.FileSize,
-		MimeType:    v.MimeType,
-		Status:      v.Status,
-		CreatedAt:   v.CreatedAt,
-		UpdatedAt:   v.UpdatedAt,
-		URLs: VideoURLs{
-			Storage: v.StorageURL,
-			Public:  v.PublicURL,
-		},
+		ID:              v.ID,
+		Title:           v.Title,
+		Description:     v.Description,
+		FileName:        v.FileName,
+		FileSize:        v.FileSize,
+		MimeType:        v.MimeType,
+		Status:          v.Status,
+		PublicURL:       v.PublicURL,
+		CreatedAt:       v.CreatedAt,
+		UpdatedAt:       v.UpdatedAt,
 		LastError:       v.LastError,
 		DurationSeconds: v.DurationSeconds,
 		ManifestURL:     v.ManifestURL,
@@ -156,7 +149,7 @@ func (v *Video) ToResponse() *VideoResponse {
 	if v.ProcessingJobID != nil && v.ProcessingStartedAt != nil {
 		processingStatus := &ProcessingStatus{
 			JobID:     *v.ProcessingJobID,
-			StartedAt: *v.ProcessingStartedAt,
+			StartedAt: v.ProcessingStartedAt,
 			EndedAt:   v.ProcessingEndedAt,
 		}
 
