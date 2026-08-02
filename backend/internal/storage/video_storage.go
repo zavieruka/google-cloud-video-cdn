@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"time"
 
 	iamcredentials "cloud.google.com/go/iam/credentials/apiv1"
@@ -41,7 +43,53 @@ func (s *GCSVideoStorage) GenerateSignedUploadURL(
 	mimeType string,
 	expiryDuration time.Duration,
 ) (string, error) {
+	return s.signedURL(ctx, objectName, http.MethodPut, mimeType, expiryDuration)
+}
 
+// GenerateSignedDownloadURL returns a time-limited V4 signed URL that grants
+// read access to a single object in this bucket. It lets the HLS delivery layer
+// hand out segment URLs while keeping the processed bucket private. No
+// Content-Type is signed: a GET request must not send one for the signature to
+// match.
+func (s *GCSVideoStorage) GenerateSignedDownloadURL(
+	ctx context.Context,
+	objectName string,
+	expiryDuration time.Duration,
+) (string, error) {
+	return s.signedURL(ctx, objectName, http.MethodGet, "", expiryDuration)
+}
+
+// ReadFile returns the full contents of an object. It is used to serve the
+// small HLS playlists (master + rendition) through the API; segments are never
+// read this way, they are fetched directly from GCS via signed URLs.
+func (s *GCSVideoStorage) ReadFile(ctx context.Context, objectName string) ([]byte, error) {
+	reader, err := s.client.Bucket(s.bucketName).Object(objectName).NewReader(ctx)
+	if err == storage.ErrObjectNotExist {
+		return nil, errors.NewNotFoundError("File", objectName)
+	}
+	if err != nil {
+		return nil, errors.NewStorageError("Failed to open file for reading", err)
+	}
+	defer reader.Close()
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, errors.NewStorageError("Failed to read file", err)
+	}
+
+	return data, nil
+}
+
+// signedURL builds a V4 signed URL for objectName, signing the blob with the
+// configured service account via the IAM Credentials API (no private key on
+// disk). It backs both the upload (PUT) and download (GET) URL generators.
+func (s *GCSVideoStorage) signedURL(
+	ctx context.Context,
+	objectName string,
+	method string,
+	contentType string,
+	expiryDuration time.Duration,
+) (string, error) {
 	iamClient, err := iamcredentials.NewIamCredentialsClient(ctx)
 	if err != nil {
 		return "", err
@@ -64,9 +112,9 @@ func (s *GCSVideoStorage) GenerateSignedUploadURL(
 
 	opts := &storage.SignedURLOptions{
 		Scheme:         storage.SigningSchemeV4,
-		Method:         "PUT",
+		Method:         method,
 		Expires:        time.Now().Add(expiryDuration),
-		ContentType:    mimeType,
+		ContentType:    contentType,
 		GoogleAccessID: s.serviceAccountEmail,
 		SignBytes:      signBytes,
 	}
