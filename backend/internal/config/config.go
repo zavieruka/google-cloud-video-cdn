@@ -21,9 +21,13 @@ type Config struct {
 	ServiceAccountEmail string
 
 	// Application Configuration
-	Port        string
-	Environment string
-	LogLevel    string
+	Port               string
+	Environment        string
+	LogLevel           string
+	CORSAllowedOrigins []string
+
+	// HLS Delivery Configuration
+	HLSSignedURLExpiryHrs int
 
 	// Upload Configuration
 	MaxUploadSizeMB     int
@@ -57,6 +61,8 @@ func Load() (*Config, error) {
 		Port:                          getEnv("PORT", "8080"),
 		Environment:                   getEnv("ENVIRONMENT", "dev"),
 		LogLevel:                      getEnv("LOG_LEVEL", "info"),
+		CORSAllowedOrigins:            getEnvAsSlice("CORS_ALLOWED_ORIGINS", []string{"*"}),
+		HLSSignedURLExpiryHrs:         getEnvAsInt("HLS_SIGNED_URL_EXPIRY_HOURS", 6),
 		MaxUploadSizeMB:               getEnvAsInt("MAX_UPLOAD_SIZE_MB", 500),
 		AllowedVideoFormats:           getEnvAsSlice("ALLOWED_VIDEO_FORMATS", []string{"mp4", "mov", "avi", "mkv"}),
 		UploadURLExpiryHrs:            getEnvAsInt("UPLOAD_URL_EXPIRY_HOURS", 1),
