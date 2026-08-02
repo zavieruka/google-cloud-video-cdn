@@ -45,6 +45,7 @@ setup:
 	@echo "Setting up GCP infrastructure..."
 	@./scripts/setup-pubsub.sh
 	@./scripts/setup-transcoder.sh
+	@./scripts/setup-buckets.sh
 
 verify:
 	@echo "Verifying setup..."
