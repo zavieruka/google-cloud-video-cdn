@@ -31,6 +31,11 @@ func (m *MockVideoStorage) DeleteFile(ctx context.Context, objectName string) er
 	return args.Error(0)
 }
 
+func (m *MockVideoStorage) DeleteByPrefix(ctx context.Context, prefix string) error {
+	args := m.Called(ctx, prefix)
+	return args.Error(0)
+}
+
 func (m *MockVideoStorage) GetStorageURL(objectName string) string {
 	args := m.Called(objectName)
 	return args.String(0)

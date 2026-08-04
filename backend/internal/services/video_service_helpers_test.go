@@ -21,9 +21,16 @@ func newTestVideoService() (
 	mockValidator := new(mocks.MockValidator)
 	mockPublisher := new(mocks.MockPublisher)
 
+	// Processed-bucket storage is only exercised by DeleteVideo on ready/failed
+	// videos; the shared helper wires a fresh mock so those paths don't panic,
+	// but leaves it inaccessible here. Tests that assert on it use
+	// newTestVideoServiceWithProcessed.
+	mockProcessed := new(mocks.MockVideoStorage)
+
 	service := services.NewVideoService(
 		mockRepo,
 		mockStorage,
+		mockProcessed,
 		mockValidator,
 		1,
 		mockPublisher,
@@ -32,6 +39,35 @@ func newTestVideoService() (
 	)
 
 	return service, mockRepo, mockStorage, mockValidator, mockPublisher
+}
+
+// newTestVideoServiceWithProcessed exposes the processed-bucket storage mock, for
+// tests that delete a ready/failed video and need to assert the HLS output is
+// purged by prefix.
+func newTestVideoServiceWithProcessed() (
+	*services.VideoServiceImpl,
+	*mocks.MockVideoRepository,
+	*mocks.MockVideoStorage,
+	*mocks.MockVideoStorage,
+) {
+	mockRepo := new(mocks.MockVideoRepository)
+	mockStorage := new(mocks.MockVideoStorage)
+	mockProcessed := new(mocks.MockVideoStorage)
+	mockValidator := new(mocks.MockValidator)
+	mockPublisher := new(mocks.MockPublisher)
+
+	service := services.NewVideoService(
+		mockRepo,
+		mockStorage,
+		mockProcessed,
+		mockValidator,
+		1,
+		mockPublisher,
+		"test-bucket-source",
+		true,
+	)
+
+	return service, mockRepo, mockStorage, mockProcessed
 }
 
 // newTestVideoServiceNoPublisher builds a service with auto-processing enabled but
@@ -43,11 +79,13 @@ func newTestVideoServiceNoPublisher() (
 ) {
 	mockRepo := new(mocks.MockVideoRepository)
 	mockStorage := new(mocks.MockVideoStorage)
+	mockProcessed := new(mocks.MockVideoStorage)
 	mockValidator := new(mocks.MockValidator)
 
 	service := services.NewVideoService(
 		mockRepo,
 		mockStorage,
+		mockProcessed,
 		mockValidator,
 		1,
 		nil, // no publisher configured

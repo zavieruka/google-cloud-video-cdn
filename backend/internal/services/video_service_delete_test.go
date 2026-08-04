@@ -63,7 +63,7 @@ func TestVideoService_DeleteVideo_StatusUploaded(t *testing.T) {
 }
 
 func TestVideoService_DeleteVideo_StatusReady(t *testing.T) {
-	service, mockRepo, mockStorage, _, _ := newTestVideoService()
+	service, mockRepo, mockStorage, mockProcessed := newTestVideoServiceWithProcessed()
 
 	ctx := context.Background()
 	videoID := "video-123"
@@ -76,6 +76,7 @@ func TestVideoService_DeleteVideo_StatusReady(t *testing.T) {
 
 	mockRepo.On("GetByID", ctx, videoID).Return(video, nil)
 	mockStorage.On("DeleteFile", ctx, video.ObjectName).Return(nil)
+	mockProcessed.On("DeleteByPrefix", ctx, videoID+"/").Return(nil)
 	mockRepo.On("Delete", ctx, videoID).Return(nil)
 
 	err := service.DeleteVideo(ctx, videoID)
@@ -84,10 +85,12 @@ func TestVideoService_DeleteVideo_StatusReady(t *testing.T) {
 
 	mockRepo.AssertExpectations(t)
 	mockStorage.AssertExpectations(t)
+	// The transcoded HLS output must be purged by prefix, not orphaned.
+	mockProcessed.AssertExpectations(t)
 }
 
 func TestVideoService_DeleteVideo_StatusFailed(t *testing.T) {
-	service, mockRepo, mockStorage, _, _ := newTestVideoService()
+	service, mockRepo, mockStorage, mockProcessed := newTestVideoServiceWithProcessed()
 
 	ctx := context.Background()
 	videoID := "video-123"
@@ -99,7 +102,9 @@ func TestVideoService_DeleteVideo_StatusFailed(t *testing.T) {
 	}
 
 	mockRepo.On("GetByID", ctx, videoID).Return(video, nil)
+	// Both deletes are best-effort for a failed video: errors are ignored.
 	mockStorage.On("DeleteFile", ctx, video.ObjectName).Return(fmt.Errorf("file not found"))
+	mockProcessed.On("DeleteByPrefix", ctx, videoID+"/").Return(fmt.Errorf("nothing to delete"))
 	mockRepo.On("Delete", ctx, videoID).Return(nil)
 
 	err := service.DeleteVideo(ctx, videoID)
@@ -108,6 +113,7 @@ func TestVideoService_DeleteVideo_StatusFailed(t *testing.T) {
 
 	mockRepo.AssertExpectations(t)
 	mockStorage.AssertExpectations(t)
+	mockProcessed.AssertExpectations(t)
 }
 
 func TestVideoService_DeleteVideo_StatusProcessing_Blocked(t *testing.T) {
@@ -241,7 +247,7 @@ func TestVideoService_DeleteVideo_AllStatuses(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, mockStorage, _, _ := newTestVideoService()
+			service, mockRepo, mockStorage, mockProcessed := newTestVideoServiceWithProcessed()
 
 			ctx := context.Background()
 			videoID := "video-123"
@@ -252,12 +258,16 @@ func TestVideoService_DeleteVideo_AllStatuses(t *testing.T) {
 				ObjectName: "videos/video-123.mp4",
 			}
 
+			// ready/failed videos have transcoded output that must be purged too.
+			purgesProcessed := tt.status == models.StatusReady || tt.status == models.StatusFailed
+
 			mockRepo.On("GetByID", ctx, videoID).Return(video, nil)
 
 			if tt.shouldBlockDelete {
 				err := service.DeleteVideo(ctx, videoID)
 				require.Error(t, err)
 				mockStorage.AssertNotCalled(t, "DeleteFile")
+				mockProcessed.AssertNotCalled(t, "DeleteByPrefix")
 				mockRepo.AssertNotCalled(t, "Delete")
 				return
 			}
@@ -267,6 +277,14 @@ func TestVideoService_DeleteVideo_AllStatuses(t *testing.T) {
 					mockStorage.On("DeleteFile", ctx, video.ObjectName).Return(fmt.Errorf("ignored"))
 				} else {
 					mockStorage.On("DeleteFile", ctx, video.ObjectName).Return(nil)
+				}
+			}
+
+			if purgesProcessed {
+				if tt.status == models.StatusFailed {
+					mockProcessed.On("DeleteByPrefix", ctx, videoID+"/").Return(fmt.Errorf("ignored"))
+				} else {
+					mockProcessed.On("DeleteByPrefix", ctx, videoID+"/").Return(nil)
 				}
 			}
 
@@ -280,6 +298,11 @@ func TestVideoService_DeleteVideo_AllStatuses(t *testing.T) {
 				mockStorage.AssertExpectations(t)
 			} else {
 				mockStorage.AssertNotCalled(t, "DeleteFile")
+			}
+			if purgesProcessed {
+				mockProcessed.AssertExpectations(t)
+			} else {
+				mockProcessed.AssertNotCalled(t, "DeleteByPrefix")
 			}
 		})
 	}

@@ -12,6 +12,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/zavieruka/video-platform/backend/internal/errors"
+	"google.golang.org/api/iterator"
 )
 
 type VideoStorage interface {
@@ -19,6 +20,7 @@ type VideoStorage interface {
 	FileExists(ctx context.Context, objectName string) (bool, error)
 	GetFileSize(ctx context.Context, objectName string) (int64, error)
 	DeleteFile(ctx context.Context, objectName string) error
+	DeleteByPrefix(ctx context.Context, prefix string) error
 	GetPublicURL(objectName string) string
 	GetStorageURL(objectName string) string
 }
@@ -164,6 +166,31 @@ func (s *GCSVideoStorage) DeleteFile(ctx context.Context, objectName string) err
 	err := object.Delete(ctx)
 	if err != nil && err != storage.ErrObjectNotExist {
 		return errors.NewStorageError("Failed to delete file", err)
+	}
+
+	return nil
+}
+
+// DeleteByPrefix deletes every object under prefix in this bucket. It is used to
+// purge a video's processed HLS output (all objects under "{videoID}/") when the
+// video is deleted, so transcoded artifacts don't outlive the record. Objects
+// that vanish mid-iteration are ignored; the first hard error aborts.
+func (s *GCSVideoStorage) DeleteByPrefix(ctx context.Context, prefix string) error {
+	bucket := s.client.Bucket(s.bucketName)
+	it := bucket.Objects(ctx, &storage.Query{Prefix: prefix})
+
+	for {
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return errors.NewStorageError("Failed to list objects for deletion", err)
+		}
+
+		if err := bucket.Object(attrs.Name).Delete(ctx); err != nil && err != storage.ErrObjectNotExist {
+			return errors.NewStorageError("Failed to delete object", err)
+		}
 	}
 
 	return nil

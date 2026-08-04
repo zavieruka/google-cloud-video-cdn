@@ -618,12 +618,14 @@ func TestVideoService_ConfirmUpload_UpdateStatusToUploadedFails(t *testing.T) {
 func TestVideoService_ConfirmUpload_PublishingDisabled(t *testing.T) {
 	mockRepo := new(mocks.MockVideoRepository)
 	mockStorage := new(mocks.MockVideoStorage)
+	mockProcessed := new(mocks.MockVideoStorage)
 	mockValidator := new(mocks.MockValidator)
 	mockPublisher := new(mocks.MockPublisher)
 
 	service := services.NewVideoService(
 		mockRepo,
 		mockStorage,
+		mockProcessed,
 		mockValidator,
 		1,
 		mockPublisher,
