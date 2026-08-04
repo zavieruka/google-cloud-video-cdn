@@ -14,6 +14,7 @@ import (
 	"github.com/zavieruka/video-platform/backend/internal/config"
 	"github.com/zavieruka/video-platform/backend/internal/database"
 	"github.com/zavieruka/video-platform/backend/internal/handlers"
+	"github.com/zavieruka/video-platform/backend/internal/hls"
 	"github.com/zavieruka/video-platform/backend/internal/middleware"
 	"github.com/zavieruka/video-platform/backend/internal/pubsub"
 	"github.com/zavieruka/video-platform/backend/internal/services"
@@ -76,6 +77,7 @@ func main() {
 
 	// Initialize services
 	videoStorage := storage.NewGCSVideoStorage(cfg.StorageClient, cfg.SourceBucketName, cfg.ServiceAccountEmail)
+	processedStorage := storage.NewGCSVideoStorage(cfg.StorageClient, cfg.ProcessedBucketName, cfg.ServiceAccountEmail)
 	videoRepository := database.NewFirestoreVideoRepository(cfg.FirestoreClient)
 	videoValidator := validation.NewVideoValidator(cfg.MaxUploadSizeMB, cfg.AllowedVideoFormats)
 	videoService := services.NewVideoService(
@@ -91,6 +93,12 @@ func main() {
 	// Initialize handlers
 	healthHandler := handlers.NewHealthHandler(cfg)
 	videoHandler := handlers.NewVideoHandler(videoService)
+	hlsHandler := handlers.NewHLSHandler(
+		videoService,
+		processedStorage,
+		hls.MasterPlaylistName,
+		time.Duration(cfg.HLSSignedURLExpiryHrs)*time.Hour,
+	)
 
 	log.Println("Services and handlers initialized successfully")
 
@@ -109,6 +117,11 @@ func main() {
 	mux.HandleFunc("GET /api/v1/videos", videoHandler.ListVideos)
 	mux.HandleFunc("DELETE /api/v1/videos/{id}", videoHandler.DeleteVideo)
 
+	// HLS delivery: playlists are served from the private processed bucket;
+	// segments are fetched directly from GCS via the signed URLs embedded in the
+	// rendition playlists.
+	mux.HandleFunc("GET /api/v1/videos/{id}/hls/{file}", hlsHandler.ServePlaylist)
+
 	// Root endpoint
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -118,7 +131,8 @@ func main() {
 		fmt.Fprintf(w, "Video Platform API - %s\n", version.Version)
 	})
 
-	handler := middleware.LoggingMiddleware(middleware.RecoveryMiddleware(mux))
+	cors := middleware.CORSMiddleware(cfg.CORSAllowedOrigins)
+	handler := middleware.LoggingMiddleware(middleware.RecoveryMiddleware(cors(mux)))
 	server := &http.Server{
 		Addr:         cfg.GetAddress(),
 		Handler:      handler,

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/zavieruka/video-platform/backend/internal/database"
+	"github.com/zavieruka/video-platform/backend/internal/hls"
 	"github.com/zavieruka/video-platform/backend/internal/models"
 	"github.com/zavieruka/video-platform/backend/internal/storage"
 	"github.com/zavieruka/video-platform/backend/internal/transcoder"
@@ -123,29 +124,32 @@ func (s *ProcessingService) monitorJob(ctx context.Context, videoID, jobName str
 func (s *ProcessingService) handleJobSuccess(ctx context.Context, videoID string) {
 	log.Printf("[MONITORING] Job succeeded for video %s", videoID)
 
-	outputPrefix := fmt.Sprintf("%s/", videoID)
-	processedVideos := map[string]models.ProcessedVideo{
-		"1080p": {
-			Resolution: "1080p",
-			StorageURL: fmt.Sprintf("gs://%s/%svideo-1080p/", s.processedBucket, outputPrefix),
-			PublicURL:  fmt.Sprintf("https://storage.googleapis.com/%s/%svideo-1080p/media.m3u8", s.processedBucket, outputPrefix),
-			Bitrate:    5000000,
-		},
-		"720p": {
-			Resolution: "720p",
-			StorageURL: fmt.Sprintf("gs://%s/%svideo-720p/", s.processedBucket, outputPrefix),
-			PublicURL:  fmt.Sprintf("https://storage.googleapis.com/%s/%svideo-720p/media.m3u8", s.processedBucket, outputPrefix),
-			Bitrate:    2500000,
-		},
-		"480p": {
-			Resolution: "480p",
-			StorageURL: fmt.Sprintf("gs://%s/%svideo-480p/", s.processedBucket, outputPrefix),
-			PublicURL:  fmt.Sprintf("https://storage.googleapis.com/%s/%svideo-480p/media.m3u8", s.processedBucket, outputPrefix),
-			Bitrate:    1000000,
-		},
+	// The Transcoder template writes a flat layout under {videoID}/: the master
+	// playlist (manifest.m3u8), one media playlist per mux-stream key
+	// (video-1080p.m3u8, ...) and the segments. Playback goes through the API's
+	// HLS delivery endpoints, which serve these from the private bucket via
+	// signed URLs — never storage.googleapis.com directly.
+	renditions := []struct {
+		label   string
+		key     string
+		bitrate int
+	}{
+		{label: "1080p", key: "video-1080p", bitrate: 5000000},
+		{label: "720p", key: "video-720p", bitrate: 2500000},
+		{label: "480p", key: "video-480p", bitrate: 1000000},
 	}
 
-	manifestURL := fmt.Sprintf("https://storage.googleapis.com/%s/%smanifest.m3u8", s.processedBucket, outputPrefix)
+	processedVideos := make(map[string]models.ProcessedVideo, len(renditions))
+	for _, r := range renditions {
+		processedVideos[r.label] = models.ProcessedVideo{
+			Resolution: r.label,
+			StorageURL: fmt.Sprintf("gs://%s/%s/%s.m3u8", s.processedBucket, videoID, r.key),
+			PublicURL:  fmt.Sprintf("/api/v1/videos/%s/hls/%s.m3u8", videoID, r.key),
+			Bitrate:    r.bitrate,
+		}
+	}
+
+	manifestURL := fmt.Sprintf("/api/v1/videos/%s/hls/%s", videoID, hls.MasterPlaylistName)
 
 	now := time.Now().UTC()
 	if err := s.videoRepo.UpdateProcessedVideos(ctx, videoID, processedVideos, manifestURL, &now); err != nil {

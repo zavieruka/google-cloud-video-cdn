@@ -266,6 +266,8 @@ Optional variables:
 - `MAX_UPLOAD_SIZE_MB`: Maximum upload size (default: 500)
 - `ALLOWED_VIDEO_FORMATS`: Allowed formats (default: mp4,mov,avi,mkv)
 - `UPLOAD_URL_EXPIRY_HOURS`: Signed URL expiry (default: 1)
+- `HLS_SIGNED_URL_EXPIRY_HOURS`: Expiry for signed HLS segment URLs (default: 6)
+- `CORS_ALLOWED_ORIGINS`: Comma-separated browser origins allowed to call the API; `*` allows any (default: "*")
 - `PUBSUB_VIDEO_UPLOADED_TOPIC`: Topic for upload events (default: "video-uploaded")
 - `PUBSUB_VIDEO_PROCESSING_COMPLETE_TOPIC`: Topic for processing completion (default: "video-processing-complete")
 - `ENABLE_AUTO_PROCESSING`: Enable automatic processing on upload (default: true)
@@ -370,6 +372,12 @@ Expected response:
 - `GET /api/v1/videos` - List videos (paginated)
 - `DELETE /api/v1/videos/{id}` - Delete video and associated storage objects
 
+### HLS Delivery
+
+- `GET /api/v1/videos/{id}/hls/{file}` - Serve an HLS playlist for a `ready` video. `{file}` is the master playlist (`manifest.m3u8`) or a rendition playlist (`video-1080p.m3u8`, ...). The master is returned verbatim; rendition playlists have their segment references rewritten to short-lived signed URLs. Segments themselves are fetched directly from Cloud Storage via those signed URLs, not through this endpoint.
+
+  A ready video's `manifestUrl` (returned by the video endpoints) points at `GET /api/v1/videos/{id}/hls/manifest.m3u8` — hand that URL to an HLS player (e.g. hls.js).
+
 ## Architecture Decisions
 
 ### Standalone REST API Design
@@ -392,6 +400,16 @@ Videos are uploaded directly to Cloud Storage using signed URLs rather than pass
 - Eliminates request timeout concerns for large files
 - Scales better as Cloud Storage handles upload traffic
 - Provides better performance for end users
+
+### HLS Delivery via Signed URLs
+
+The processed bucket stays **private** — it is never made public. HLS content is delivered through the API instead:
+
+- The API serves the small **playlists** (master + rendition) out of the private bucket. The master is a passthrough; its relative rendition references resolve back to the API. Rendition playlists have each segment/init reference rewritten to a time-limited **V4 signed URL**.
+- The player fetches **segments directly from Cloud Storage** using those signed URLs — segment bytes never pass through Cloud Run, keeping delivery cheap and scalable.
+- Because segments are fetched cross-origin straight from Cloud Storage, the **processed bucket needs CORS** ([GET, HEAD] from the frontend origin). Run `./scripts/setup-buckets.sh` to apply it.
+
+Signed URLs expire after `HLS_SIGNED_URL_EXPIRY_HOURS` (default 6). This is the precursor to Cloud CDN + signed cookies, which will front the same private bucket later without changing the playback contract.
 
 ### Event-Driven Video Processing
 
