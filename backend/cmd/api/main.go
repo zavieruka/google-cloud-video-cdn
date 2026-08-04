@@ -83,6 +83,7 @@ func main() {
 	videoService := services.NewVideoService(
 		videoRepository,
 		videoStorage,
+		processedStorage,
 		videoValidator,
 		cfg.UploadURLExpiryHrs,
 		publisher,

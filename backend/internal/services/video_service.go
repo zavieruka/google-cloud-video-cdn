@@ -36,6 +36,7 @@ type Publisher interface {
 type VideoServiceImpl struct {
 	repository        database.VideoRepository
 	storage           storage.VideoStorage
+	processedStorage  storage.VideoStorage
 	validator         Validator
 	uploadExpiryHrs   int
 	publisher         Publisher
@@ -46,6 +47,7 @@ type VideoServiceImpl struct {
 func NewVideoService(
 	repository database.VideoRepository,
 	storage storage.VideoStorage,
+	processedStorage storage.VideoStorage,
 	validator Validator,
 	uploadExpiryHrs int,
 	publisher Publisher,
@@ -55,6 +57,7 @@ func NewVideoService(
 	return &VideoServiceImpl{
 		repository:        repository,
 		storage:           storage,
+		processedStorage:  processedStorage,
 		validator:         validator,
 		uploadExpiryHrs:   uploadExpiryHrs,
 		publisher:         publisher,
@@ -274,13 +277,20 @@ func (s *VideoServiceImpl) DeleteVideo(ctx context.Context, videoID string) erro
 		}
 
 	case models.StatusReady:
-		// TODO: delete processed artifacts when transcoding is implemented
 		if err := s.storage.DeleteFile(ctx, video.ObjectName); err != nil {
 			return fmt.Errorf("failed to delete storage object: %w", err)
 		}
+		// Purge the transcoded HLS output (manifest, rendition playlists, segments)
+		// under the video's prefix in the processed bucket.
+		if err := s.processedStorage.DeleteByPrefix(ctx, videoID+"/"); err != nil {
+			return fmt.Errorf("failed to delete processed artifacts: %w", err)
+		}
 
 	case models.StatusFailed:
+		// Best-effort: a failed transcode may have left a source object and/or
+		// partial processed output behind.
 		_ = s.storage.DeleteFile(ctx, video.ObjectName)
+		_ = s.processedStorage.DeleteByPrefix(ctx, videoID+"/")
 
 	default:
 		return fmt.Errorf("unsupported status: %s", video.Status)
