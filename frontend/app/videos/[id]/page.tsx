@@ -1,5 +1,11 @@
 import { VideoDetail } from "../../../components/video-detail";
 
-export default function VideoPage({ params }: { params: { id: string } }) {
-  return <VideoDetail videoId={params.id} />;
+export default async function VideoPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
+  return <VideoDetail videoId={id} />;
 }

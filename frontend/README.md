@@ -1,6 +1,6 @@
 # Video Platform web app
 
-An intentionally small Next.js example consumer for the Go Video Platform API.
+An intentionally small Next.js 16 example consumer for the Go Video Platform API.
 It demonstrates the real browser flow: request a signed upload URL, upload
 directly to Cloud Storage, confirm the upload, watch processing status, and play
 the returned HLS manifest.
@@ -46,7 +46,8 @@ npm run check
 npm run build
 ```
 
-`npm run check` runs ESLint, TypeScript, and the unit/component suite.
+`npm run check` runs ESLint, TypeScript, and the unit/component suite. Node.js
+20.9 or later is required by Next.js 16.
 
 ## Browser smoke test (manual review)
 
