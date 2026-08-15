@@ -106,13 +106,27 @@ func (h *HLSHandler) ServePlaylist(w http.ResponseWriter, r *http.Request) {
 }
 
 // segmentResolver signs a segment reference relative to the video's prefix,
-// leaving any already-absolute URL untouched.
+// leaving any already-absolute URL untouched. Transcoder playlists can refer
+// to one fMP4 object many times through byte ranges, so reuse its signed URL
+// for this response instead of making the same IAM signing call repeatedly.
 func (h *HLSHandler) segmentResolver(ctx context.Context, videoID string) hls.URIResolver {
+	signedURLs := make(map[string]string)
+
 	return func(uri string) (string, error) {
 		if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
 			return uri, nil
 		}
-		return h.storage.GenerateSignedDownloadURL(ctx, videoID+"/"+uri, h.segmentTTL)
+		if signedURL, ok := signedURLs[uri]; ok {
+			return signedURL, nil
+		}
+
+		signedURL, err := h.storage.GenerateSignedDownloadURL(ctx, videoID+"/"+uri, h.segmentTTL)
+		if err != nil {
+			return "", err
+		}
+		signedURLs[uri] = signedURL
+
+		return signedURL, nil
 	}
 }
 
