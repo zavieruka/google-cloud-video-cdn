@@ -6,6 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import { resolveApiUrl } from "../lib/api";
 
 export function HlsPlayer({ manifestUrl }: { manifestUrl: string }) {
+  return <HlsPlayerSource key={manifestUrl} manifestUrl={manifestUrl} />;
+}
+
+function HlsPlayerSource({ manifestUrl }: { manifestUrl: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string>();
 
@@ -16,8 +20,6 @@ export function HlsPlayer({ manifestUrl }: { manifestUrl: string }) {
     }
 
     const source = resolveApiUrl(manifestUrl);
-    setError(undefined);
-
     const onNativeError = () => setError("The video could not be played. Please try again.");
     video.addEventListener("error", onNativeError);
 
@@ -30,8 +32,16 @@ export function HlsPlayer({ manifestUrl }: { manifestUrl: string }) {
     }
 
     if (!Hls.isSupported()) {
-      setError("HLS playback is not supported by this browser.");
-      return () => video.removeEventListener("error", onNativeError);
+      let isMounted = true;
+      queueMicrotask(() => {
+        if (isMounted) {
+          setError("HLS playback is not supported by this browser.");
+        }
+      });
+      return () => {
+        isMounted = false;
+        video.removeEventListener("error", onNativeError);
+      };
     }
 
     const hls = new Hls();

@@ -30,7 +30,24 @@ export function VideoList() {
   };
 
   useEffect(() => {
-    void loadVideos();
+    let isMounted = true;
+
+    void listVideos()
+      .then((response) => {
+        if (isMounted) {
+          setVideos(response.videos);
+          setError(undefined);
+        }
+      })
+      .catch((loadError: unknown) => {
+        if (isMounted) {
+          setError(errorMessage(loadError));
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const removeVideo = async (videoID: string) => {
