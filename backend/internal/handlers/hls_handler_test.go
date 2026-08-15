@@ -25,8 +25,9 @@ func (f *fakeVideoLookup) GetVideo(context.Context, string) (*models.Video, erro
 }
 
 type fakeHLSStorage struct {
-	files   map[string][]byte
-	readErr error
+	files             map[string][]byte
+	readErr           error
+	signedObjectNames []string
 }
 
 func (f *fakeHLSStorage) ReadFile(_ context.Context, objectName string) ([]byte, error) {
@@ -41,6 +42,7 @@ func (f *fakeHLSStorage) ReadFile(_ context.Context, objectName string) ([]byte,
 }
 
 func (f *fakeHLSStorage) GenerateSignedDownloadURL(_ context.Context, objectName string, _ time.Duration) (string, error) {
+	f.signedObjectNames = append(f.signedObjectNames, objectName)
 	return "https://signed.example/" + objectName + "?sig=x", nil
 }
 
@@ -89,6 +91,27 @@ func TestServePlaylist_RenditionSignsSegments(t *testing.T) {
 	assert.Contains(t, body, `#EXT-X-MAP:URI="https://signed.example/v1/video-1080pinit.mp4?sig=x"`)
 	assert.Contains(t, body, "https://signed.example/v1/video-1080p0.m4s?sig=x")
 	assert.NotContains(t, body, "\nvideo-1080p0.m4s\n")
+}
+
+func TestServePlaylist_RenditionReusesSignedURLForRepeatedSegment(t *testing.T) {
+	media := strings.Join([]string{
+		"#EXTM3U",
+		`#EXT-X-MAP:URI="segment.m4s"`,
+		"#EXTINF:6.000,",
+		"segment.m4s",
+		"#EXTINF:6.000,",
+		"segment.m4s",
+		"#EXT-X-ENDLIST",
+		"",
+	}, "\n")
+	storage := &fakeHLSStorage{files: map[string][]byte{"v1/video-1080p.m3u8": []byte(media)}}
+	h := handlers.NewHLSHandler(&fakeVideoLookup{video: readyVideo()}, storage, "manifest.m3u8", time.Hour)
+
+	rr := serve(h, "v1", "video-1080p.m3u8")
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, []string{"v1/segment.m4s"}, storage.signedObjectNames)
+	assert.Equal(t, 3, strings.Count(rr.Body.String(), "https://signed.example/v1/segment.m4s?sig=x"))
 }
 
 func TestServePlaylist_NotReadyReturnsConflict(t *testing.T) {
