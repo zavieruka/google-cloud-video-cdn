@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { ApiError, getVideo } from "../lib/api";
+import { ApiError, getVideo, selectThumbnail } from "../lib/api";
 import type { Video, VideoStatus as VideoStatusValue } from "../lib/types";
 import { HlsPlayer } from "./hls-player";
+import { Thumbnail } from "./thumbnail";
 import { VideoStatus, videoStatusLabel } from "./video-status";
 
 const pollableStatuses = new Set<VideoStatusValue>(["pending", "uploaded", "processing"]);
@@ -21,6 +22,8 @@ function errorMessage(error: unknown): string {
 export function VideoDetail({ videoId }: { videoId: string }) {
   const [video, setVideo] = useState<Video>();
   const [error, setError] = useState<string>();
+  const [selectingIndex, setSelectingIndex] = useState<number>();
+  const [thumbnailError, setThumbnailError] = useState<string>();
 
   useEffect(() => {
     let disposed = false;
@@ -57,6 +60,23 @@ export function VideoDetail({ videoId }: { videoId: string }) {
     };
   }, [videoId]);
 
+  const selectCandidate = async (selectedIndex: number) => {
+    if (!video?.thumbnail) {
+      return;
+    }
+
+    setSelectingIndex(selectedIndex);
+    try {
+      const updatedVideo = await selectThumbnail(video.id, selectedIndex);
+      setVideo(updatedVideo);
+      setThumbnailError(undefined);
+    } catch (selectionError) {
+      setThumbnailError(errorMessage(selectionError));
+    } finally {
+      setSelectingIndex(undefined);
+    }
+  };
+
   if (error) {
     return (
       <section className="rounded-xl border border-rose-200 bg-rose-50 p-6">
@@ -72,6 +92,8 @@ export function VideoDetail({ videoId }: { videoId: string }) {
   if (!video) {
     return <p className="text-sm text-slate-600">Loading video…</p>;
   }
+
+  const thumbnail = video.thumbnail;
 
   return (
     <article className="space-y-6">
@@ -106,6 +128,31 @@ export function VideoDetail({ videoId }: { videoId: string }) {
         <p className="rounded-lg bg-rose-50 p-4 text-sm text-rose-800">
           The video is ready, but its playback manifest is unavailable.
         </p>
+      ) : null}
+
+      {video.status === "ready" && thumbnail ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-slate-950">Thumbnail</h2>
+          <div className="max-w-2xl">
+            <Thumbnail alt={`${video.title} thumbnail`} index={thumbnail.selectedIndex} url={thumbnail.url} />
+          </div>
+          <div aria-label="Thumbnail candidates" className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group">
+            {Array.from({ length: 12 }, (_, index) => (
+              <button
+                aria-label={`Select thumbnail candidate ${index + 1}`}
+                aria-pressed={thumbnail.selectedIndex === index}
+                className="rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-50"
+                disabled={selectingIndex !== undefined}
+                key={index}
+                onClick={() => void selectCandidate(index)}
+                type="button"
+              >
+                <Thumbnail alt={`Thumbnail candidate ${index + 1}`} index={index} url={thumbnail.url} />
+              </button>
+            ))}
+          </div>
+          {thumbnailError ? <p className="text-sm text-rose-800">{thumbnailError}</p> : null}
+        </section>
       ) : null}
     </article>
   );
