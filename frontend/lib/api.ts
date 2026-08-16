@@ -69,7 +69,7 @@ async function requestJSON<T>(
   return (await response.json()) as T;
 }
 
-function jsonRequest(method: "POST" | "DELETE", body?: unknown, signal?: AbortSignal): RequestInit {
+function jsonRequest(method: "POST" | "PATCH" | "DELETE", body?: unknown, signal?: AbortSignal): RequestInit {
   return {
     method,
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },
@@ -112,6 +112,13 @@ export function failUpload(
 
 export function getVideo(videoId: string, signal?: AbortSignal): Promise<Video> {
   return requestJSON<Video>(`/api/v1/videos/${videoId}`, { signal });
+}
+
+export function selectThumbnail(videoId: string, selectedIndex: number, signal?: AbortSignal): Promise<Video> {
+  return requestJSON<Video>(
+    `/api/v1/videos/${videoId}/thumbnail`,
+    jsonRequest("PATCH", { selectedIndex }, signal),
+  );
 }
 
 export function listVideos(

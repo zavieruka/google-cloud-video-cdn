@@ -222,8 +222,8 @@ backend/
    This script will:
    - Enable Transcoder API
    - Grant service account `roles/transcoder.admin` permission
-   - Create `hls-adaptive-template` for video transcoding
-   - Configure template with 1080p, 720p, and 480p resolutions
+   - Create `hls-adaptive-thumbnails-v2` for video transcoding
+   - Configure template with 1080p, 720p, 480p, and generated thumbnail candidates
 
 ### Production Deployment Notes
 
@@ -272,7 +272,7 @@ Optional variables:
 - `PUBSUB_VIDEO_PROCESSING_COMPLETE_TOPIC`: Topic for processing completion (default: "video-processing-complete")
 - `ENABLE_AUTO_PROCESSING`: Enable automatic processing on upload (default: true)
 - `TRANSCODER_LOCATION`: Transcoder API location (default: "us-central1")
-- `TRANSCODER_TEMPLATE_ID`: Transcoder template ID (default: "hls-adaptive-template")
+- `TRANSCODER_TEMPLATE_ID`: Transcoder template ID (default: "hls-adaptive-thumbnails-v2")
 
 ### Production Deployment
 
@@ -577,7 +577,7 @@ ps aux | grep "go run cmd/processor"
 
 **Check transcoder template exists:**
 ```bash
-gcloud transcoder templates describe hls-adaptive-template --location=us-central1
+gcloud transcoder templates describe hls-adaptive-thumbnails-v2 --location=us-central1
 ```
 
 If not found, run:

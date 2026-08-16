@@ -20,6 +20,7 @@ type VideoService interface {
 	FailUpload(ctx context.Context, videoID string, req *models.FailUploadRequest) (*models.FailUploadResponse, error)
 	GetVideo(ctx context.Context, videoID string) (*models.Video, error)
 	ListVideos(ctx context.Context, limit, offset int) (*models.VideoListResponse, error)
+	SelectThumbnail(ctx context.Context, videoID string, selectedIndex int) (*models.Video, error)
 	DeleteVideo(ctx context.Context, videoID string) error
 }
 
@@ -253,6 +254,25 @@ func (s *VideoServiceImpl) ListVideos(ctx context.Context, limit, offset int) (*
 	}
 
 	return response, nil
+}
+
+func (s *VideoServiceImpl) SelectThumbnail(ctx context.Context, videoID string, selectedIndex int) (*models.Video, error) {
+	video, err := s.repository.GetByID(ctx, videoID)
+	if err != nil {
+		return nil, err
+	}
+	if video.Status != models.StatusReady || video.ThumbnailURL == nil {
+		return nil, errors.NewConflictError("Generated thumbnails are not available for this video")
+	}
+	if selectedIndex < 0 || selectedIndex >= models.ThumbnailCandidateCount {
+		return nil, errors.NewBadRequestError("selectedIndex must be between 0 and 11")
+	}
+	if err := s.repository.UpdateThumbnailSelection(ctx, videoID, selectedIndex); err != nil {
+		return nil, err
+	}
+
+	video.ThumbnailSelectedIndex = &selectedIndex
+	return video, nil
 }
 
 func (s *VideoServiceImpl) DeleteVideo(ctx context.Context, videoID string) error {

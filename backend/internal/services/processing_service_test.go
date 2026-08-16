@@ -29,11 +29,15 @@ func TestProcessingService_handleJobSuccess_WritesDeliveryURLs(t *testing.T) {
 
 	var gotProcessed map[string]models.ProcessedVideo
 	var gotManifest string
+	var gotThumbnailURL string
+	var gotThumbnailIndex int
 
-	mockRepo.On("UpdateProcessedVideos", mock.Anything, videoID, mock.Anything, mock.Anything, mock.Anything).
+	mockRepo.On("UpdateProcessedVideos", mock.Anything, videoID, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			gotProcessed = args.Get(2).(map[string]models.ProcessedVideo)
 			gotManifest = args.String(3)
+			gotThumbnailURL = args.String(4)
+			gotThumbnailIndex = args.Int(5)
 		}).Return(nil)
 	mockRepo.On("UpdateStatus", mock.Anything, videoID, models.StatusReady, (*string)(nil)).Return(nil)
 
@@ -43,6 +47,8 @@ func TestProcessingService_handleJobSuccess_WritesDeliveryURLs(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 
 	assert.Equal(t, "/api/v1/videos/video-123/hls/manifest.m3u8", gotManifest)
+	assert.Equal(t, "/api/v1/videos/video-123/thumbnail", gotThumbnailURL)
+	assert.Equal(t, 5, gotThumbnailIndex)
 
 	expected := map[string]models.ProcessedVideo{
 		"1080p": {
@@ -79,7 +85,7 @@ func TestProcessingService_handleJobSuccess_NoReadyIfProcessedWriteFails(t *test
 	ctx := context.Background()
 	videoID := "video-123"
 
-	mockRepo.On("UpdateProcessedVideos", mock.Anything, videoID, mock.Anything, mock.Anything, mock.Anything).
+	mockRepo.On("UpdateProcessedVideos", mock.Anything, videoID, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(assert.AnError)
 
 	svc.handleJobSuccess(ctx, videoID)

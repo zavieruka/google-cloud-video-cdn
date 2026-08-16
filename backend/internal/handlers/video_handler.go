@@ -127,6 +127,32 @@ func (h *VideoHandler) ListVideos(w http.ResponseWriter, r *http.Request) {
 	h.respondJSON(w, http.StatusOK, response)
 }
 
+func (h *VideoHandler) SelectThumbnail(w http.ResponseWriter, r *http.Request) {
+	videoID := r.PathValue("id")
+	if videoID == "" {
+		h.respondError(w, errors.NewBadRequestError("Video ID is required"))
+		return
+	}
+
+	var req models.SelectThumbnailRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, errors.NewBadRequestError("Invalid request body"))
+		return
+	}
+	if req.SelectedIndex == nil {
+		h.respondError(w, errors.NewBadRequestError("selectedIndex is required"))
+		return
+	}
+
+	video, err := h.videoService.SelectThumbnail(r.Context(), videoID, *req.SelectedIndex)
+	if err != nil {
+		h.respondError(w, err)
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, video.ToResponse())
+}
+
 func (h *VideoHandler) respondJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)

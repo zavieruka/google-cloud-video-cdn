@@ -100,6 +100,11 @@ func main() {
 		hls.MasterPlaylistName,
 		time.Duration(cfg.HLSSignedURLExpiryHrs)*time.Hour,
 	)
+	thumbnailHandler := handlers.NewThumbnailHandler(
+		videoService,
+		processedStorage,
+		time.Duration(cfg.HLSSignedURLExpiryHrs)*time.Hour,
+	)
 
 	log.Println("Services and handlers initialized successfully")
 
@@ -116,12 +121,14 @@ func main() {
 	mux.HandleFunc("POST /api/v1/videos/{id}/fail", videoHandler.FailUpload)
 	mux.HandleFunc("GET /api/v1/videos/{id}", videoHandler.GetVideo)
 	mux.HandleFunc("GET /api/v1/videos", videoHandler.ListVideos)
+	mux.HandleFunc("PATCH /api/v1/videos/{id}/thumbnail", videoHandler.SelectThumbnail)
 	mux.HandleFunc("DELETE /api/v1/videos/{id}", videoHandler.DeleteVideo)
 
 	// HLS delivery: playlists are served from the private processed bucket;
 	// segments are fetched directly from GCS via the signed URLs embedded in the
 	// rendition playlists.
 	mux.HandleFunc("GET /api/v1/videos/{id}/hls/{file}", hlsHandler.ServePlaylist)
+	mux.HandleFunc("GET /api/v1/videos/{id}/thumbnail", thumbnailHandler.ServeThumbnail)
 
 	// Root endpoint
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

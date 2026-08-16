@@ -39,6 +39,11 @@ export interface ProcessedVideo {
   bitrate: number;
 }
 
+export interface Thumbnail {
+  url: string;
+  selectedIndex: number;
+}
+
 export interface Video {
   id: string;
   title: string;
@@ -54,6 +59,7 @@ export interface Video {
   processingStatus?: ProcessingStatus;
   processedVideos?: ProcessedVideo[];
   manifestUrl?: string;
+  thumbnail?: Thumbnail;
   durationSeconds: number;
 }
 

@@ -24,7 +24,8 @@ type VideoRepository interface {
 	List(ctx context.Context, limit int, offset int) ([]*models.Video, int, error)
 	UpdateProcessingJobID(ctx context.Context, id string, jobID string) error
 	UpdateProcessingStatus(ctx context.Context, id string, status models.VideoStatus, startedAt, endedAt *time.Time) error
-	UpdateProcessedVideos(ctx context.Context, id string, processedVideos map[string]models.ProcessedVideo, manifestURL string, endedAt *time.Time) error
+	UpdateProcessedVideos(ctx context.Context, id string, processedVideos map[string]models.ProcessedVideo, manifestURL, thumbnailURL string, thumbnailSelectedIndex int, endedAt *time.Time) error
+	UpdateThumbnailSelection(ctx context.Context, id string, selectedIndex int) error
 }
 
 type FirestoreVideoRepository struct {
@@ -168,10 +169,12 @@ func (r *FirestoreVideoRepository) UpdateProcessingStatus(ctx context.Context, i
 	return nil
 }
 
-func (r *FirestoreVideoRepository) UpdateProcessedVideos(ctx context.Context, id string, processedVideos map[string]models.ProcessedVideo, manifestURL string, endedAt *time.Time) error {
+func (r *FirestoreVideoRepository) UpdateProcessedVideos(ctx context.Context, id string, processedVideos map[string]models.ProcessedVideo, manifestURL, thumbnailURL string, thumbnailSelectedIndex int, endedAt *time.Time) error {
 	updates := []firestore.Update{
 		{Path: "processedVideos", Value: processedVideos},
 		{Path: "manifestUrl", Value: manifestURL},
+		{Path: "thumbnailUrl", Value: thumbnailURL},
+		{Path: "thumbnailSelectedIndex", Value: thumbnailSelectedIndex},
 		{Path: "updatedAt", Value: firestore.ServerTimestamp},
 	}
 
@@ -183,6 +186,18 @@ func (r *FirestoreVideoRepository) UpdateProcessedVideos(ctx context.Context, id
 
 	if err != nil {
 		return errors.NewDatabaseError("Failed to update processed videos", err)
+	}
+
+	return nil
+}
+
+func (r *FirestoreVideoRepository) UpdateThumbnailSelection(ctx context.Context, id string, selectedIndex int) error {
+	_, err := r.client.Collection(videosCollection).Doc(id).Update(ctx, []firestore.Update{
+		{Path: "thumbnailSelectedIndex", Value: selectedIndex},
+		{Path: "updatedAt", Value: firestore.ServerTimestamp},
+	})
+	if err != nil {
+		return errors.NewDatabaseError("Failed to update thumbnail selection", err)
 	}
 
 	return nil

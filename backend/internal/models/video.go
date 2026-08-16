@@ -12,6 +12,11 @@ const (
 	StatusReady      VideoStatus = "ready"
 )
 
+const (
+	ThumbnailCandidateCount       = 12
+	DefaultThumbnailSelectedIndex = 5
+)
+
 type Video struct {
 	ID                 string      `firestore:"id"`
 	Title              string      `firestore:"title"`
@@ -29,12 +34,14 @@ type Video struct {
 	UpdatedAt          time.Time   `firestore:"updatedAt"`
 	LastError          *string     `firestore:"lastError,omitempty"`
 
-	ProcessingJobID     *string                   `firestore:"processingJobId,omitempty"`
-	ProcessedVideos     map[string]ProcessedVideo `firestore:"processedVideos,omitempty"`
-	ProcessingStartedAt *time.Time                `firestore:"processingStartedAt,omitempty"`
-	ProcessingEndedAt   *time.Time                `firestore:"processingEndedAt,omitempty"`
-	DurationSeconds     int                       `firestore:"durationSeconds,omitempty"`
-	ManifestURL         *string                   `firestore:"manifestUrl,omitempty"`
+	ProcessingJobID        *string                   `firestore:"processingJobId,omitempty"`
+	ProcessedVideos        map[string]ProcessedVideo `firestore:"processedVideos,omitempty"`
+	ProcessingStartedAt    *time.Time                `firestore:"processingStartedAt,omitempty"`
+	ProcessingEndedAt      *time.Time                `firestore:"processingEndedAt,omitempty"`
+	DurationSeconds        int                       `firestore:"durationSeconds,omitempty"`
+	ManifestURL            *string                   `firestore:"manifestUrl,omitempty"`
+	ThumbnailURL           *string                   `firestore:"thumbnailUrl,omitempty"`
+	ThumbnailSelectedIndex *int                      `firestore:"thumbnailSelectedIndex,omitempty"`
 }
 
 type ProcessedVideo struct {
@@ -57,6 +64,10 @@ type UploadURLRequest struct {
 
 type ConfirmUploadRequest struct {
 	UploadedAt *time.Time `json:"uploadedAt,omitempty"`
+}
+
+type SelectThumbnailRequest struct {
+	SelectedIndex *int `json:"selectedIndex"`
 }
 
 type FailUploadRequest struct {
@@ -100,6 +111,7 @@ type VideoResponse struct {
 	ProcessedVideos  []ProcessedVideoResponse `json:"processedVideos,omitempty"`
 	ManifestURL      *string                  `json:"manifestUrl,omitempty"`
 	DurationSeconds  int                      `json:"durationSeconds,omitempty"`
+	Thumbnail        *ThumbnailResponse       `json:"thumbnail,omitempty"`
 }
 
 type ProcessingStatus struct {
@@ -114,6 +126,11 @@ type ProcessedVideoResponse struct {
 	URL        string `json:"url"`
 	FileSize   int64  `json:"fileSize"`
 	Bitrate    int    `json:"bitrate"`
+}
+
+type ThumbnailResponse struct {
+	URL           string `json:"url"`
+	SelectedIndex int    `json:"selectedIndex"`
 }
 
 type VideoListResponse struct {
@@ -144,6 +161,13 @@ func (v *Video) ToResponse() *VideoResponse {
 		LastError:       v.LastError,
 		DurationSeconds: v.DurationSeconds,
 		ManifestURL:     v.ManifestURL,
+	}
+
+	if v.ThumbnailURL != nil && v.ThumbnailSelectedIndex != nil {
+		response.Thumbnail = &ThumbnailResponse{
+			URL:           *v.ThumbnailURL,
+			SelectedIndex: *v.ThumbnailSelectedIndex,
+		}
 	}
 
 	if v.ProcessingJobID != nil && v.ProcessingStartedAt != nil {

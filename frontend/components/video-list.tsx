@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { ApiError, deleteVideo, listVideos } from "../lib/api";
 import type { Video } from "../lib/types";
+import { Thumbnail } from "./thumbnail";
 import { VideoStatus } from "./video-status";
 
 function errorMessage(error: unknown): string {
@@ -86,7 +87,10 @@ export function VideoList() {
         <ul className="grid gap-4 sm:grid-cols-2">
           {videos.map((video) => (
             <li className="rounded-xl border border-slate-200 p-5 shadow-sm" key={video.id}>
-              <div className="flex items-start justify-between gap-3">
+              {video.status === "ready" && video.thumbnail ? (
+                <Thumbnail alt={`${video.title} thumbnail`} index={video.thumbnail.selectedIndex} url={video.thumbnail.url} />
+              ) : null}
+              <div className={`flex items-start justify-between gap-3${video.status === "ready" && video.thumbnail ? " mt-4" : ""}`}>
                 <div>
                   <Link className="font-semibold text-slate-950 hover:underline" href={`/videos/${video.id}`}>
                     {video.title}

@@ -1,6 +1,7 @@
 .PHONY: help check test test-integration test-coverage test-verbose clean run-api run-processor setup verify
 
 TRANSCODER_REGION ?= us-central1
+TRANSCODER_TEMPLATE_ID ?= hls-adaptive-thumbnails-v2
 
 help:
 	@echo "Available commands:"
@@ -52,7 +53,7 @@ verify:
 	@gcloud services list --enabled | grep -q pubsub.googleapis.com && echo "✓ Pub/Sub API enabled" || echo "✗ Pub/Sub API not enabled"
 	@gcloud services list --enabled | grep -q transcoder.googleapis.com && echo "✓ Transcoder API enabled" || echo "✗ Transcoder API not enabled"
 	@gcloud pubsub topics describe video-uploaded >/dev/null 2>&1 && echo "✓ video-uploaded topic exists" || echo "✗ video-uploaded topic missing"
-	@gcloud transcoder templates describe hls-adaptive-template --location=$(TRANSCODER_REGION) >/dev/null 2>&1 && echo "✓ Transcoder template exists" || echo "✗ Transcoder template missing"
+	@gcloud transcoder templates describe $(TRANSCODER_TEMPLATE_ID) --location=$(TRANSCODER_REGION) >/dev/null 2>&1 && echo "✓ Transcoder template exists" || echo "✗ Transcoder template missing"
 
 run-api:
 	@echo "Starting API server..."
