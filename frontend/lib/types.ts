@@ -41,7 +41,18 @@ export interface ProcessedVideo {
 
 export interface Thumbnail {
   url: string;
-  selectedIndex: number;
+  candidatesUrl: string;
+  selectedIndex?: number;
+}
+
+export interface ThumbnailUploadURLRequest {
+  mimeType: string;
+  fileSize: number;
+}
+
+export interface ThumbnailUploadURLResponse {
+  uploadUrl: string;
+  expiresAt: string;
 }
 
 export interface Video {
