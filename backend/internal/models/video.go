@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type VideoStatus string
 
@@ -15,6 +18,7 @@ const (
 const (
 	ThumbnailCandidateCount       = 12
 	DefaultThumbnailSelectedIndex = 5
+	MaxThumbnailUploadSizeBytes   = 10 * 1024 * 1024
 )
 
 type Video struct {
@@ -42,6 +46,7 @@ type Video struct {
 	ManifestURL            *string                   `firestore:"manifestUrl,omitempty"`
 	ThumbnailURL           *string                   `firestore:"thumbnailUrl,omitempty"`
 	ThumbnailSelectedIndex *int                      `firestore:"thumbnailSelectedIndex,omitempty"`
+	ThumbnailObjectName    *string                   `firestore:"thumbnailObjectName,omitempty"`
 }
 
 type ProcessedVideo struct {
@@ -68,6 +73,11 @@ type ConfirmUploadRequest struct {
 
 type SelectThumbnailRequest struct {
 	SelectedIndex *int `json:"selectedIndex"`
+}
+
+type ThumbnailUploadURLRequest struct {
+	MimeType string `json:"mimeType"`
+	FileSize int64  `json:"fileSize"`
 }
 
 type FailUploadRequest struct {
@@ -130,7 +140,13 @@ type ProcessedVideoResponse struct {
 
 type ThumbnailResponse struct {
 	URL           string `json:"url"`
-	SelectedIndex int    `json:"selectedIndex"`
+	CandidatesURL string `json:"candidatesUrl"`
+	SelectedIndex *int   `json:"selectedIndex,omitempty"`
+}
+
+type ThumbnailUploadURLResponse struct {
+	UploadURL string    `json:"uploadUrl"`
+	ExpiresAt time.Time `json:"expiresAt"`
 }
 
 type VideoListResponse struct {
@@ -163,10 +179,15 @@ func (v *Video) ToResponse() *VideoResponse {
 		ManifestURL:     v.ManifestURL,
 	}
 
-	if v.ThumbnailURL != nil && v.ThumbnailSelectedIndex != nil {
+	if v.ThumbnailURL != nil {
+		candidatesURL := *v.ThumbnailURL
+		if v.ThumbnailObjectName != nil {
+			candidatesURL = fmt.Sprintf("/api/v1/videos/%s/thumbnail/candidates", v.ID)
+		}
 		response.Thumbnail = &ThumbnailResponse{
 			URL:           *v.ThumbnailURL,
-			SelectedIndex: *v.ThumbnailSelectedIndex,
+			CandidatesURL: candidatesURL,
+			SelectedIndex: v.ThumbnailSelectedIndex,
 		}
 	}
 

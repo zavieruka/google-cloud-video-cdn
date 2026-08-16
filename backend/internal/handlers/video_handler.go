@@ -153,6 +153,44 @@ func (h *VideoHandler) SelectThumbnail(w http.ResponseWriter, r *http.Request) {
 	h.respondJSON(w, http.StatusOK, video.ToResponse())
 }
 
+func (h *VideoHandler) RequestThumbnailUploadURL(w http.ResponseWriter, r *http.Request) {
+	videoID := r.PathValue("id")
+	if videoID == "" {
+		h.respondError(w, errors.NewBadRequestError("Video ID is required"))
+		return
+	}
+
+	var req models.ThumbnailUploadURLRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, errors.NewBadRequestError("Invalid request body"))
+		return
+	}
+
+	response, err := h.videoService.RequestThumbnailUploadURL(r.Context(), videoID, &req)
+	if err != nil {
+		h.respondError(w, err)
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, response)
+}
+
+func (h *VideoHandler) ConfirmThumbnailUpload(w http.ResponseWriter, r *http.Request) {
+	videoID := r.PathValue("id")
+	if videoID == "" {
+		h.respondError(w, errors.NewBadRequestError("Video ID is required"))
+		return
+	}
+
+	video, err := h.videoService.ConfirmThumbnailUpload(r.Context(), videoID)
+	if err != nil {
+		h.respondError(w, err)
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, video.ToResponse())
+}
+
 func (h *VideoHandler) respondJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)

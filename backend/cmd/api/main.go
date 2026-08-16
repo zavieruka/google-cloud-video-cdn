@@ -122,12 +122,15 @@ func main() {
 	mux.HandleFunc("GET /api/v1/videos/{id}", videoHandler.GetVideo)
 	mux.HandleFunc("GET /api/v1/videos", videoHandler.ListVideos)
 	mux.HandleFunc("PATCH /api/v1/videos/{id}/thumbnail", videoHandler.SelectThumbnail)
+	mux.HandleFunc("POST /api/v1/videos/{id}/thumbnail/upload-url", videoHandler.RequestThumbnailUploadURL)
+	mux.HandleFunc("POST /api/v1/videos/{id}/thumbnail/confirm", videoHandler.ConfirmThumbnailUpload)
 	mux.HandleFunc("DELETE /api/v1/videos/{id}", videoHandler.DeleteVideo)
 
 	// HLS delivery: playlists are served from the private processed bucket;
 	// segments are fetched directly from GCS via the signed URLs embedded in the
 	// rendition playlists.
 	mux.HandleFunc("GET /api/v1/videos/{id}/hls/{file}", hlsHandler.ServePlaylist)
+	mux.HandleFunc("GET /api/v1/videos/{id}/thumbnail/candidates", thumbnailHandler.ServeThumbnailCandidates)
 	mux.HandleFunc("GET /api/v1/videos/{id}/thumbnail", thumbnailHandler.ServeThumbnail)
 
 	// Root endpoint
