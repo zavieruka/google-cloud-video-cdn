@@ -19,7 +19,8 @@ fi
 PROCESSED_BUCKET_NAME="${PROCESSED_BUCKET_NAME:-${PROJECT_ID}-videos-processed}"
 SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_EMAIL:-video-platform-dev@${PROJECT_ID}.iam.gserviceaccount.com}"
 
-# Browser origins allowed to fetch segments directly from Cloud Storage.
+# Browser origins allowed to fetch HLS segments and upload custom thumbnails
+# directly to Cloud Storage.
 # Comma-separated; "*" allows any. Keep this in sync with CORS_ALLOWED_ORIGINS.
 CORS_ALLOWED_ORIGINS="${CORS_ALLOWED_ORIGINS:-*}"
 
@@ -44,13 +45,13 @@ ORIGINS_JSON=$(printf '%s' "$CORS_ALLOWED_ORIGINS" | awk -F',' '{
 CORS_FILE=$(mktemp)
 trap 'rm -f "$CORS_FILE"' EXIT
 
-# HLS players issue byte-range GET/HEAD requests for fMP4 segments; expose the
-# range-related response headers so the player can seek.
+# HLS players issue byte-range GET/HEAD requests for fMP4 segments, while custom
+# thumbnails use signed PUT uploads. Expose range-related headers for seeking.
 cat > "$CORS_FILE" <<EOF
 [
   {
     "origin": [${ORIGINS_JSON}],
-    "method": ["GET", "HEAD"],
+    "method": ["GET", "HEAD", "PUT"],
     "responseHeader": ["Content-Type", "Content-Length", "Content-Range", "Range", "Accept-Ranges", "ETag"],
     "maxAgeSeconds": 3600
   }
@@ -61,11 +62,11 @@ echo "Applying CORS configuration to the processed bucket..."
 gcloud storage buckets update "gs://${PROCESSED_BUCKET_NAME}" --cors-file="$CORS_FILE"
 
 echo ""
-echo "Granting the service account read access on the processed bucket..."
+echo "Granting the service account object access on the processed bucket..."
 echo "(Delivery is via signed URLs; the bucket is NOT made public.)"
 gcloud storage buckets add-iam-policy-binding "gs://${PROCESSED_BUCKET_NAME}" \
     --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
-    --role="roles/storage.objectViewer"
+    --role="roles/storage.objectUser"
 
 echo ""
 echo "========================================="
@@ -73,8 +74,8 @@ echo "Processed Bucket Delivery Setup Complete!"
 echo "========================================="
 echo ""
 echo "Configured:"
-echo "  ✓ CORS [GET, HEAD] for: ${CORS_ALLOWED_ORIGINS}"
-echo "  ✓ Service account read access (objectViewer)"
+echo "  ✓ CORS [GET, HEAD, PUT] for: ${CORS_ALLOWED_ORIGINS}"
+echo "  ✓ Service account object access (objectUser)"
 echo "  ✓ Bucket remains private — no allUsers binding"
 echo ""
 echo "Note: signing download URLs also requires the runtime identity to hold"

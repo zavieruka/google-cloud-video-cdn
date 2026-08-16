@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { ApiError, getVideo, selectThumbnail } from "../lib/api";
+import {
+  ApiError,
+  confirmThumbnailUpload,
+  getVideo,
+  requestThumbnailUploadUrl,
+  selectThumbnail,
+  uploadFile,
+} from "../lib/api";
 import type { Video, VideoStatus as VideoStatusValue } from "../lib/types";
 import { HlsPlayer } from "./hls-player";
 import { Thumbnail } from "./thumbnail";
@@ -23,6 +30,9 @@ export function VideoDetail({ videoId }: { videoId: string }) {
   const [video, setVideo] = useState<Video>();
   const [error, setError] = useState<string>();
   const [selectingIndex, setSelectingIndex] = useState<number>();
+  const [thumbnailRevision, setThumbnailRevision] = useState(0);
+  const [thumbnailFile, setThumbnailFile] = useState<File>();
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [thumbnailError, setThumbnailError] = useState<string>();
 
   useEffect(() => {
@@ -69,11 +79,36 @@ export function VideoDetail({ videoId }: { videoId: string }) {
     try {
       const updatedVideo = await selectThumbnail(video.id, selectedIndex);
       setVideo(updatedVideo);
+      setThumbnailRevision((revision) => revision + 1);
       setThumbnailError(undefined);
     } catch (selectionError) {
       setThumbnailError(errorMessage(selectionError));
     } finally {
       setSelectingIndex(undefined);
+    }
+  };
+
+  const uploadCustomThumbnail = async () => {
+    if (!video || !thumbnailFile) {
+      return;
+    }
+
+    setUploadingThumbnail(true);
+    try {
+      const { uploadUrl } = await requestThumbnailUploadUrl(video.id, {
+        mimeType: thumbnailFile.type,
+        fileSize: thumbnailFile.size,
+      });
+      await uploadFile(uploadUrl, thumbnailFile);
+      const updatedVideo = await confirmThumbnailUpload(video.id);
+      setVideo(updatedVideo);
+      setThumbnailRevision((revision) => revision + 1);
+      setThumbnailFile(undefined);
+      setThumbnailError(undefined);
+    } catch (uploadError) {
+      setThumbnailError(errorMessage(uploadError));
+    } finally {
+      setUploadingThumbnail(false);
     }
   };
 
@@ -94,6 +129,8 @@ export function VideoDetail({ videoId }: { videoId: string }) {
   }
 
   const thumbnail = video.thumbnail;
+  const thumbnailURL = thumbnail ? `${thumbnail.url}?thumbnailRevision=${thumbnailRevision}` : "";
+  const candidatesURL = thumbnail ? `${thumbnail.candidatesUrl}?thumbnailRevision=${thumbnailRevision}` : "";
 
   return (
     <article className="space-y-6">
@@ -134,7 +171,30 @@ export function VideoDetail({ videoId }: { videoId: string }) {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-slate-950">Thumbnail</h2>
           <div className="max-w-2xl">
-            <Thumbnail alt={`${video.title} thumbnail`} index={thumbnail.selectedIndex} url={thumbnail.url} />
+            <Thumbnail alt={`${video.title} thumbnail`} index={thumbnail.selectedIndex} url={thumbnailURL} />
+          </div>
+          <div className="rounded-lg border border-slate-200 p-4">
+            <label className="block text-sm font-medium text-slate-900" htmlFor="custom-thumbnail">
+              Custom thumbnail image
+            </label>
+            <input
+              accept="image/jpeg,image/png,image/webp"
+              className="mt-2 block w-full text-sm text-slate-700"
+              id="custom-thumbnail"
+              onChange={(event) => setThumbnailFile(event.target.files?.[0])}
+              type="file"
+            />
+            <p className="mt-2 text-sm text-slate-600">
+              JPEG, PNG, or WebP up to 10 MB. Use at least 1280×720 for best results; the original image is stored without resizing.
+            </p>
+            <button
+              className="mt-3 rounded-md bg-blue-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              disabled={!thumbnailFile || uploadingThumbnail}
+              onClick={() => void uploadCustomThumbnail()}
+              type="button"
+            >
+              {uploadingThumbnail ? "Uploading thumbnail…" : "Upload custom thumbnail"}
+            </button>
           </div>
           <div aria-label="Thumbnail candidates" className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group">
             {Array.from({ length: 12 }, (_, index) => (
@@ -147,7 +207,7 @@ export function VideoDetail({ videoId }: { videoId: string }) {
                 onClick={() => void selectCandidate(index)}
                 type="button"
               >
-                <Thumbnail alt={`Thumbnail candidate ${index + 1}`} index={index} url={thumbnail.url} />
+                <Thumbnail alt={`Thumbnail candidate ${index + 1}`} index={index} url={candidatesURL} />
               </button>
             ))}
           </div>

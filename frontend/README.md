@@ -30,8 +30,9 @@ the returned HLS manifest.
    ```
 
    Apply the same origin to the processed bucket with
-   `backend/scripts/setup-buckets.sh`. HLS playlists come from the API, but the
-   browser fetches signed HLS segments directly from Cloud Storage.
+   `backend/scripts/setup-buckets.sh`. HLS playlists come from the API, while
+   the browser fetches signed HLS segments and uploads custom thumbnails
+   directly to Cloud Storage.
 
 4. Start the app:
 
@@ -63,3 +64,6 @@ GCP buckets.
 5. Repeat playback in Safari to exercise native HLS.
 6. Delete the ready video, confirm it leaves the list, and verify the API reports
    an error rather than deleting while a video is still `processing`.
+7. Upload a JPEG, PNG, or WebP custom thumbnail (at least 1280×720, at most 10
+   MB), confirm it displays clearly, then select a generated candidate to switch
+   back.

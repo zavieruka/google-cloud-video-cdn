@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ApiError,
+  confirmThumbnailUpload,
   confirmUpload,
   deleteVideo,
   getVideo,
   listVideos,
+  requestThumbnailUploadUrl,
   requestUploadUrl,
   resolveApiUrl,
 } from "./api";
@@ -160,6 +162,47 @@ describe("API client", () => {
       4,
       "http://localhost:8080/api/v1/videos/video-123",
       { method: "DELETE", headers: undefined, body: undefined, signal: undefined },
+    );
+  });
+
+  it("uses the custom-thumbnail signed upload and confirmation endpoints", async () => {
+    const uploadResponse = {
+      uploadUrl: "https://storage.googleapis.com/signed-thumbnail-upload",
+      expiresAt: "2026-08-05T15:00:00Z",
+    };
+    const video = {
+      id: "video-123",
+      title: "Demo",
+      description: "",
+      fileName: "demo.mp4",
+      fileSize: 1024,
+      mimeType: "video/mp4",
+      status: "ready",
+      publicUrl: "",
+      createdAt: "2026-08-05T15:00:00Z",
+      updatedAt: "2026-08-05T15:00:00Z",
+      durationSeconds: 0,
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(uploadResponse)).mockResolvedValueOnce(Response.json(video));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(requestThumbnailUploadUrl("video-123", { mimeType: "image/png", fileSize: 1024 })).resolves.toEqual(uploadResponse);
+    await expect(confirmThumbnailUpload("video-123")).resolves.toEqual(video);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:8080/api/v1/videos/video-123/thumbnail/upload-url",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mimeType: "image/png", fileSize: 1024 }),
+        signal: undefined,
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:8080/api/v1/videos/video-123/thumbnail/confirm",
+      { method: "POST", headers: undefined, body: undefined, signal: undefined },
     );
   });
 });

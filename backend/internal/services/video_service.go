@@ -21,6 +21,8 @@ type VideoService interface {
 	GetVideo(ctx context.Context, videoID string) (*models.Video, error)
 	ListVideos(ctx context.Context, limit, offset int) (*models.VideoListResponse, error)
 	SelectThumbnail(ctx context.Context, videoID string, selectedIndex int) (*models.Video, error)
+	RequestThumbnailUploadURL(ctx context.Context, videoID string, req *models.ThumbnailUploadURLRequest) (*models.ThumbnailUploadURLResponse, error)
+	ConfirmThumbnailUpload(ctx context.Context, videoID string) (*models.Video, error)
 	DeleteVideo(ctx context.Context, videoID string) error
 }
 
@@ -272,7 +274,81 @@ func (s *VideoServiceImpl) SelectThumbnail(ctx context.Context, videoID string, 
 	}
 
 	video.ThumbnailSelectedIndex = &selectedIndex
+	video.ThumbnailObjectName = nil
 	return video, nil
+}
+
+func (s *VideoServiceImpl) RequestThumbnailUploadURL(ctx context.Context, videoID string, req *models.ThumbnailUploadURLRequest) (*models.ThumbnailUploadURLResponse, error) {
+	if _, err := s.getReadyVideoWithGeneratedThumbnails(ctx, videoID); err != nil {
+		return nil, err
+	}
+	if req == nil {
+		return nil, errors.NewBadRequestError("Thumbnail upload details are required")
+	}
+	if req.MimeType != "image/jpeg" && req.MimeType != "image/png" && req.MimeType != "image/webp" {
+		return nil, errors.NewBadRequestError("Thumbnail must be a JPEG, PNG, or WebP image")
+	}
+	if req.FileSize <= 0 || req.FileSize > models.MaxThumbnailUploadSizeBytes {
+		return nil, errors.NewBadRequestError("Thumbnail file size must be between 1 byte and 10 MiB")
+	}
+
+	expiryDuration := time.Duration(s.uploadExpiryHrs) * time.Hour
+	uploadURL, err := s.processedStorage.GenerateSignedUploadURL(ctx, thumbnailUploadObjectName(videoID), req.MimeType, expiryDuration)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.ThumbnailUploadURLResponse{
+		UploadURL: uploadURL,
+		ExpiresAt: time.Now().UTC().Add(expiryDuration),
+	}, nil
+}
+
+func (s *VideoServiceImpl) ConfirmThumbnailUpload(ctx context.Context, videoID string) (*models.Video, error) {
+	video, err := s.getReadyVideoWithGeneratedThumbnails(ctx, videoID)
+	if err != nil {
+		return nil, err
+	}
+
+	objectName := thumbnailUploadObjectName(videoID)
+	exists, err := s.processedStorage.FileExists(ctx, objectName)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.NewBadRequestError("Thumbnail file not found in storage. Please ensure the file was uploaded successfully.")
+	}
+
+	fileSize, err := s.processedStorage.GetFileSize(ctx, objectName)
+	if err != nil {
+		return nil, err
+	}
+	if fileSize <= 0 || fileSize > models.MaxThumbnailUploadSizeBytes {
+		return nil, errors.NewBadRequestError("Thumbnail file size must be between 1 byte and 10 MiB")
+	}
+
+	if err := s.repository.UpdateCustomThumbnail(ctx, videoID, objectName); err != nil {
+		return nil, err
+	}
+
+	video.ThumbnailObjectName = &objectName
+	video.ThumbnailSelectedIndex = nil
+	return video, nil
+}
+
+func (s *VideoServiceImpl) getReadyVideoWithGeneratedThumbnails(ctx context.Context, videoID string) (*models.Video, error) {
+	video, err := s.repository.GetByID(ctx, videoID)
+	if err != nil {
+		return nil, err
+	}
+	if video.Status != models.StatusReady || video.ThumbnailURL == nil {
+		return nil, errors.NewConflictError("Generated thumbnails are not available for this video")
+	}
+	return video, nil
+}
+
+func thumbnailUploadObjectName(videoID string) string {
+	return videoID + "/thumbnail-upload"
 }
 
 func (s *VideoServiceImpl) DeleteVideo(ctx context.Context, videoID string) error {

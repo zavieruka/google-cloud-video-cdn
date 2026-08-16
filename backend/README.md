@@ -407,9 +407,15 @@ The processed bucket stays **private** — it is never made public. HLS content 
 
 - The API serves the small **playlists** (master + rendition) out of the private bucket. The master is a passthrough; its relative rendition references resolve back to the API. Rendition playlists have each segment/init reference rewritten to a time-limited **V4 signed URL**.
 - The player fetches **segments directly from Cloud Storage** using those signed URLs — segment bytes never pass through Cloud Run, keeping delivery cheap and scalable.
-- Because segments are fetched cross-origin straight from Cloud Storage, the **processed bucket needs CORS** ([GET, HEAD] from the frontend origin). Run `./scripts/setup-buckets.sh` to apply it.
+- Because segments are fetched cross-origin straight from Cloud Storage, the **processed bucket needs CORS** ([GET, HEAD, PUT] from the frontend origin). Run `./scripts/setup-buckets.sh` to apply it.
 
 Signed URLs expire after `HLS_SIGNED_URL_EXPIRY_HOURS` (default 6). This is the precursor to Cloud CDN + signed cookies, which will front the same private bucket later without changing the playback contract.
+
+### Custom Thumbnail Uploads
+
+Ready videos can replace their generated thumbnail with a JPEG, PNG, or WebP image. The API creates a short-lived signed PUT URL for one private object per video; after upload, it confirms the object exists and is non-empty and no larger than 10 MiB before making it the current thumbnail. The original image is retained without resizing.
+
+The processed bucket stays private. `./scripts/setup-buckets.sh` configures browser PUT CORS and grants the runtime service account `roles/storage.objectUser`, which covers the signed upload, delivery lookup, and artifact cleanup paths. Generated candidates remain available so a user can switch back at any time.
 
 ### Event-Driven Video Processing
 

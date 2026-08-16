@@ -27,6 +27,14 @@ func NewThumbnailHandler(videos VideoLookup, storage ThumbnailStorage, signedURL
 }
 
 func (h *ThumbnailHandler) ServeThumbnail(w http.ResponseWriter, r *http.Request) {
+	h.serveThumbnail(w, r, false)
+}
+
+func (h *ThumbnailHandler) ServeThumbnailCandidates(w http.ResponseWriter, r *http.Request) {
+	h.serveThumbnail(w, r, true)
+}
+
+func (h *ThumbnailHandler) serveThumbnail(w http.ResponseWriter, r *http.Request, candidates bool) {
 	videoID := r.PathValue("id")
 	if videoID == "" {
 		h.respondError(w, errors.NewBadRequestError("Video ID is required"))
@@ -47,13 +55,22 @@ func (h *ThumbnailHandler) ServeThumbnail(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	signedURL, err := h.storage.GenerateSignedDownloadURL(r.Context(), videoID+"/"+thumbnailSheetName, h.signedURLTTL)
+	objectName := videoID + "/" + thumbnailSheetName
+	if !candidates && video.ThumbnailObjectName != nil {
+		objectName = *video.ThumbnailObjectName
+	}
+
+	signedURL, err := h.storage.GenerateSignedDownloadURL(r.Context(), objectName, h.signedURLTTL)
 	if err != nil {
 		h.respondError(w, err)
 		return
 	}
 
-	w.Header().Set("Cache-Control", "private, max-age=60")
+	if candidates {
+		w.Header().Set("Cache-Control", "private, max-age=60")
+	} else {
+		w.Header().Set("Cache-Control", "no-store")
+	}
 	http.Redirect(w, r, signedURL, http.StatusFound)
 }
 

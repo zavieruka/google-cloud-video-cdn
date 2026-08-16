@@ -2,6 +2,8 @@ import type {
   ApiErrorPayload,
   FailUploadRequest,
   FailUploadResponse,
+  ThumbnailUploadURLRequest,
+  ThumbnailUploadURLResponse,
   UploadURLRequest,
   UploadURLResponse,
   Video,
@@ -118,6 +120,24 @@ export function selectThumbnail(videoId: string, selectedIndex: number, signal?:
   return requestJSON<Video>(
     `/api/v1/videos/${videoId}/thumbnail`,
     jsonRequest("PATCH", { selectedIndex }, signal),
+  );
+}
+
+export function requestThumbnailUploadUrl(
+  videoId: string,
+  request: ThumbnailUploadURLRequest,
+  signal?: AbortSignal,
+): Promise<ThumbnailUploadURLResponse> {
+  return requestJSON<ThumbnailUploadURLResponse>(
+    `/api/v1/videos/${videoId}/thumbnail/upload-url`,
+    jsonRequest("POST", request, signal),
+  );
+}
+
+export function confirmThumbnailUpload(videoId: string, signal?: AbortSignal): Promise<Video> {
+  return requestJSON<Video>(
+    `/api/v1/videos/${videoId}/thumbnail/confirm`,
+    jsonRequest("POST", undefined, signal),
   );
 }
 

@@ -26,6 +26,7 @@ type VideoRepository interface {
 	UpdateProcessingStatus(ctx context.Context, id string, status models.VideoStatus, startedAt, endedAt *time.Time) error
 	UpdateProcessedVideos(ctx context.Context, id string, processedVideos map[string]models.ProcessedVideo, manifestURL, thumbnailURL string, thumbnailSelectedIndex int, endedAt *time.Time) error
 	UpdateThumbnailSelection(ctx context.Context, id string, selectedIndex int) error
+	UpdateCustomThumbnail(ctx context.Context, id, objectName string) error
 }
 
 type FirestoreVideoRepository struct {
@@ -194,10 +195,24 @@ func (r *FirestoreVideoRepository) UpdateProcessedVideos(ctx context.Context, id
 func (r *FirestoreVideoRepository) UpdateThumbnailSelection(ctx context.Context, id string, selectedIndex int) error {
 	_, err := r.client.Collection(videosCollection).Doc(id).Update(ctx, []firestore.Update{
 		{Path: "thumbnailSelectedIndex", Value: selectedIndex},
+		{Path: "thumbnailObjectName", Value: firestore.Delete},
 		{Path: "updatedAt", Value: firestore.ServerTimestamp},
 	})
 	if err != nil {
 		return errors.NewDatabaseError("Failed to update thumbnail selection", err)
+	}
+
+	return nil
+}
+
+func (r *FirestoreVideoRepository) UpdateCustomThumbnail(ctx context.Context, id, objectName string) error {
+	_, err := r.client.Collection(videosCollection).Doc(id).Update(ctx, []firestore.Update{
+		{Path: "thumbnailObjectName", Value: objectName},
+		{Path: "thumbnailSelectedIndex", Value: firestore.Delete},
+		{Path: "updatedAt", Value: firestore.ServerTimestamp},
+	})
+	if err != nil {
+		return errors.NewDatabaseError("Failed to update custom thumbnail", err)
 	}
 
 	return nil

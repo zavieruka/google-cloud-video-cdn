@@ -29,7 +29,11 @@ describe("VideoList", () => {
           createdAt: "2026-08-05T15:00:00Z",
           updatedAt: "2026-08-05T15:00:00Z",
           durationSeconds: 0,
-          thumbnail: { url: "/api/v1/videos/video-123/thumbnail", selectedIndex: 5 },
+          thumbnail: {
+            url: "/api/v1/videos/video-123/thumbnail",
+            candidatesUrl: "/api/v1/videos/video-123/thumbnail",
+            selectedIndex: 5,
+          },
         },
       ],
       totalCount: 1,

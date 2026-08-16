@@ -62,3 +62,8 @@ func (m *MockVideoRepository) UpdateThumbnailSelection(ctx context.Context, id s
 	args := m.Called(ctx, id, selectedIndex)
 	return args.Error(0)
 }
+
+func (m *MockVideoRepository) UpdateCustomThumbnail(ctx context.Context, id, objectName string) error {
+	args := m.Called(ctx, id, objectName)
+	return args.Error(0)
+}
