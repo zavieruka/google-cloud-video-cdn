@@ -66,4 +66,5 @@ func TestCORS_PreflightShortCircuits(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, rr.Code)
 	assert.False(t, called, "preflight must not reach the router")
 	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
+	assert.Contains(t, rr.Header().Get("Access-Control-Allow-Methods"), http.MethodPatch)
 }
