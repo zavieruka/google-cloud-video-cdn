@@ -102,6 +102,18 @@
         "type": "HLS",
         "muxStreams": ["video-1080p", "video-720p", "video-480p", "audio"]
       }
+    ],
+    "spriteSheets": [
+      {
+        "format": "jpeg",
+        "filePrefix": "thumbnail-candidates",
+        "spriteWidthPixels": 640,
+        "spriteHeightPixels": 360,
+        "columnCount": 4,
+        "rowCount": 3,
+        "totalCount": 12,
+        "quality": 80
+      }
     ]
   }
 }

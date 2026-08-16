@@ -53,7 +53,12 @@ func (m *MockVideoRepository) UpdateProcessingStatus(ctx context.Context, id str
 	return args.Error(0)
 }
 
-func (m *MockVideoRepository) UpdateProcessedVideos(ctx context.Context, id string, processedVideos map[string]models.ProcessedVideo, manifestURL string, endedAt *time.Time) error {
-	args := m.Called(ctx, id, processedVideos, manifestURL, endedAt)
+func (m *MockVideoRepository) UpdateProcessedVideos(ctx context.Context, id string, processedVideos map[string]models.ProcessedVideo, manifestURL, thumbnailURL string, thumbnailSelectedIndex int, endedAt *time.Time) error {
+	args := m.Called(ctx, id, processedVideos, manifestURL, thumbnailURL, thumbnailSelectedIndex, endedAt)
+	return args.Error(0)
+}
+
+func (m *MockVideoRepository) UpdateThumbnailSelection(ctx context.Context, id string, selectedIndex int) error {
+	args := m.Called(ctx, id, selectedIndex)
 	return args.Error(0)
 }

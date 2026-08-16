@@ -150,9 +150,18 @@ func (s *ProcessingService) handleJobSuccess(ctx context.Context, videoID string
 	}
 
 	manifestURL := fmt.Sprintf("/api/v1/videos/%s/hls/%s", videoID, hls.MasterPlaylistName)
+	thumbnailURL := fmt.Sprintf("/api/v1/videos/%s/thumbnail", videoID)
 
 	now := time.Now().UTC()
-	if err := s.videoRepo.UpdateProcessedVideos(ctx, videoID, processedVideos, manifestURL, &now); err != nil {
+	if err := s.videoRepo.UpdateProcessedVideos(
+		ctx,
+		videoID,
+		processedVideos,
+		manifestURL,
+		thumbnailURL,
+		models.DefaultThumbnailSelectedIndex,
+		&now,
+	); err != nil {
 		log.Printf("[MONITORING] Failed to update processed videos for %s: %v", videoID, err)
 		return
 	}

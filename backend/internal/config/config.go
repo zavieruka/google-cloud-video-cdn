@@ -71,7 +71,7 @@ func Load() (*Config, error) {
 		PubSubProcessorSubscription:   getEnv("PUBSUB_PROCESSOR_SUBSCRIPTION", "video-processor-sub"),
 		EnableAutoProcessing:          getEnvAsBool("ENABLE_AUTO_PROCESSING", true),
 		TranscoderLocation:            getEnv("TRANSCODER_LOCATION", "us-central1"),
-		TranscoderTemplateID:          getEnv("TRANSCODER_TEMPLATE_ID", "hls-adaptive-template"),
+		TranscoderTemplateID:          getEnv("TRANSCODER_TEMPLATE_ID", "hls-adaptive-thumbnails-v2"),
 	}
 
 	if err := cfg.Validate(); err != nil {
