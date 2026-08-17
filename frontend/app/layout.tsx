@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { AppSidebar } from "../components/app-sidebar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +13,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="en">
       <body>
-        <main className="mx-auto min-h-screen max-w-5xl px-5 py-10 sm:px-8">{children}</main>
+        <div className="min-h-screen lg:flex">
+          <AppSidebar />
+          <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">{children}</main>
+        </div>
       </body>
     </html>
   );
