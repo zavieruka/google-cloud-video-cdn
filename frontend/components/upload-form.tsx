@@ -88,7 +88,7 @@ export function UploadForm({ onCompleted }: { onCompleted: (videoId: string) => 
       <label className="block space-y-1.5 text-sm font-medium text-slate-800" htmlFor="title">
         Title
         <input
-          className="block w-full rounded-md border border-slate-300 px-3 py-2 text-base"
+          className="block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           id="title"
           maxLength={200}
           name="title"
@@ -100,7 +100,7 @@ export function UploadForm({ onCompleted }: { onCompleted: (videoId: string) => 
       <label className="block space-y-1.5 text-sm font-medium text-slate-800" htmlFor="description">
         Description
         <textarea
-          className="block w-full rounded-md border border-slate-300 px-3 py-2 text-base"
+          className="block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           id="description"
           name="description"
           rows={4}
@@ -111,7 +111,7 @@ export function UploadForm({ onCompleted }: { onCompleted: (videoId: string) => 
         Video file
         <input
           accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska"
-          className="block w-full text-sm"
+          className="block w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-blue-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-200"
           id="video-file"
           name="video-file"
           onChange={(event) => setFile(event.target.files?.[0])}
@@ -128,7 +128,7 @@ export function UploadForm({ onCompleted }: { onCompleted: (videoId: string) => 
       {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-800">{error}</p> : null}
 
       <button
-        className="rounded-md bg-blue-700 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
+        className="rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
         disabled={isSubmitting}
         type="submit"
       >

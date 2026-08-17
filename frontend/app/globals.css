@@ -4,12 +4,13 @@
 
 :root {
   color: #0f172a;
-  background: #f8fafc;
+  background: #f1f5f9;
 }
 
 body {
   margin: 0;
-  background: #f8fafc;
+  min-width: 320px;
+  background: #f1f5f9;
 }
 
 button,

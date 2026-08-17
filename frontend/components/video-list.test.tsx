@@ -1,16 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const deleteVideo = vi.hoisted(() => vi.fn());
 const listVideos = vi.hoisted(() => vi.fn());
 
-vi.mock("../lib/api", () => ({ deleteVideo, listVideos, resolveApiUrl: (url: string) => url }));
+vi.mock("../lib/api", () => ({ listVideos, resolveApiUrl: (url: string) => url }));
 
 import { VideoList } from "./video-list";
 
 describe("VideoList", () => {
   afterEach(() => {
-    deleteVideo.mockReset();
     listVideos.mockReset();
   });
 
@@ -45,5 +43,8 @@ describe("VideoList", () => {
 
     const thumbnail = await screen.findByRole("img", { name: "Demo thumbnail" });
     expect(Number.parseFloat(thumbnail.style.backgroundPosition)).toBeCloseTo(100 / 3);
+    expect(screen.getByRole("link", { name: "Open Demo" })).toHaveAttribute("href", "/videos/video-123");
+    expect(screen.queryByRole("link", { name: "View details" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
   });
 });
