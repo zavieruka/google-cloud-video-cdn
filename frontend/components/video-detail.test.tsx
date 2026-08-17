@@ -3,19 +3,23 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 
 const getVideo = vi.hoisted(() => vi.fn());
+const deleteVideo = vi.hoisted(() => vi.fn());
 const selectThumbnail = vi.hoisted(() => vi.fn());
 const requestThumbnailUploadUrl = vi.hoisted(() => vi.fn());
 const uploadFile = vi.hoisted(() => vi.fn());
 const confirmThumbnailUpload = vi.hoisted(() => vi.fn());
+const push = vi.hoisted(() => vi.fn());
 
 vi.mock("../lib/api", () => ({
   getVideo,
+  deleteVideo,
   selectThumbnail,
   requestThumbnailUploadUrl,
   uploadFile,
   confirmThumbnailUpload,
   resolveApiUrl: (url: string) => url,
 }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("./hls-player", () => ({ HlsPlayer: () => <div>player</div> }));
 
 import { VideoDetail } from "./video-detail";
@@ -38,10 +42,12 @@ describe("VideoDetail", () => {
   afterEach(() => {
     vi.useRealTimers();
     getVideo.mockReset();
+    deleteVideo.mockReset();
     selectThumbnail.mockReset();
     requestThumbnailUploadUrl.mockReset();
     uploadFile.mockReset();
     confirmThumbnailUpload.mockReset();
+    push.mockReset();
   });
 
   it("polls nonterminal videos, then stops once the video is ready", async () => {
@@ -91,6 +97,23 @@ describe("VideoDetail", () => {
     expect(getVideo).toHaveBeenCalledTimes(1);
   });
 
+  it("deletes a video from its detail page", async () => {
+    getVideo.mockResolvedValue({
+      ...pendingVideo,
+      status: "ready",
+      manifestUrl: "/api/v1/videos/video-123/hls/manifest.m3u8",
+    });
+    deleteVideo.mockResolvedValue({ message: "Video deleted" });
+
+    render(<VideoDetail videoId="video-123" />);
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Delete video" }));
+
+    await waitFor(() => expect(deleteVideo).toHaveBeenCalledWith("video-123"));
+    expect(push).toHaveBeenCalledWith("/");
+  });
+
   it("selects a generated thumbnail candidate", async () => {
     const readyVideo = {
       ...pendingVideo,
@@ -113,8 +136,10 @@ describe("VideoDetail", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByRole("img", { name: "Demo thumbnail" }).parentElement).toHaveClass("max-w-2xl");
-    screen.getByRole("button", { name: "Select thumbnail candidate 7" }).click();
+    expect(screen.getByRole("img", { name: "Demo thumbnail" }).parentElement).toHaveClass("max-w-sm");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Show next thumbnail suggestions" }));
+    await user.click(screen.getByRole("button", { name: "Select thumbnail candidate 7" }));
 
     await act(async () => {
       await Promise.resolve();
@@ -122,6 +147,37 @@ describe("VideoDetail", () => {
 
     expect(selectThumbnail).toHaveBeenCalledWith("video-123", 6);
     expect(screen.getByRole("button", { name: "Select thumbnail candidate 7" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shows generated thumbnail candidates in pages", async () => {
+    const readyVideo = {
+      ...pendingVideo,
+      status: "ready" as const,
+      manifestUrl: "/api/v1/videos/video-123/hls/manifest.m3u8",
+      thumbnail: {
+        url: "/api/v1/videos/video-123/thumbnail",
+        candidatesUrl: "/api/v1/videos/video-123/thumbnail",
+        selectedIndex: 5,
+      },
+    };
+    getVideo.mockResolvedValue(readyVideo);
+
+    render(<VideoDetail videoId="video-123" />);
+    const user = userEvent.setup();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("button", { name: "Select thumbnail candidate 1" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Select thumbnail candidate 5" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show previous thumbnail suggestions" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Show next thumbnail suggestions" }));
+
+    expect(screen.queryByRole("button", { name: "Select thumbnail candidate 1" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select thumbnail candidate 5" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show previous thumbnail suggestions" })).toBeEnabled();
   });
 
   it("uses fresh thumbnail URLs after uploading a custom image or selecting a generated candidate", async () => {
@@ -173,6 +229,7 @@ describe("VideoDetail", () => {
     );
     expect(screen.getByRole("button", { name: "Select thumbnail candidate 1" })).toBeInTheDocument();
 
+    await user.click(screen.getByRole("button", { name: "Show next thumbnail suggestions" }));
     await user.click(screen.getByRole("button", { name: "Select thumbnail candidate 7" }));
 
     await waitFor(() => expect(selectThumbnail).toHaveBeenCalledWith("video-123", 6));
